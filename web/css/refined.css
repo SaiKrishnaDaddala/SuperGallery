@@ -63,6 +63,10 @@ main { grid-column:2; grid-row:1/-1; min-height:0; }
 .view > * { width:100%; max-width:1320px; margin-left:auto; margin-right:auto; }
 .view.flush { padding:calc(var(--toolbar-height) + 24px) 28px 20px; }
 .view.flush > * { max-width:none; margin-left:0; margin-right:0; width:100%; }
+/* Every section of a page shares one centered column, whatever margins its own styles set. */
+.view:not(.flush) > * { margin-left:auto; margin-right:auto; }
+/* Empty states fill their whole grid instead of its first cell. */
+.empty { grid-column:1 / -1; }
 .page-head { align-items:center; gap:16px; margin-bottom:28px; }
 .page-head h1,.gallery-heading h1 { font:700 2.1rem/1.12 var(--font-display); letter-spacing:-.035em; margin:0; }
 .page-head p { margin-top:8px; font-size:.875rem; line-height:1.5; color:var(--muted); }
@@ -167,6 +171,8 @@ a.card:hover,.card.hover:hover { transform:none; box-shadow:none; border-color:v
 .gallery-view .select-mode[aria-pressed="true"] { color:var(--accent); background:var(--accent-soft); border-color:transparent; }
 .scrubber { font-size:11px; background:transparent; }
 .panel-list { border-radius:12px; border:.5px solid var(--line); box-shadow:none; }
+/* The checkbox column is narrow; keep the checkbox whole instead of eliding it. */
+.panel-list .vrow > div:first-child, .panel-list .vl-head > div:first-child { padding:0 0 0 9px; overflow:visible; text-overflow:clip; }
 .vl-head { background:var(--panel2); color:var(--muted); font-size:11px; }
 .vrow { font-size:13px; }
 .vrow:nth-child(even) { background:color-mix(in srgb,var(--fill) 25%,transparent); }

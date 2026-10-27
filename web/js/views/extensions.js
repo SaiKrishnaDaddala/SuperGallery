@@ -44,11 +44,11 @@ export function extensionsView(root, params) {
       <td class="muted">${esc(CAT_LABEL[r.cat] || r.cat)}</td><td class="r num">${num(r.count)}</td><td class="r num"><b>${bytes(r.size)}</b></td>
       <td><div class="bar-track"><div class="bar-fill" style="width:${(100 * r.size) / max}%;background:${CAT_COLORS[r.cat]}"></div></div></td>
       <td class="r num muted">${bytes(r.avg)}</td><td class="r num muted">${bytes(r.max)}</td><td class="muted num">${date(r.newest)}</td>
-      <td><button class="btn sm ghost view">${icon('eye')}View</button></td></tr>`).join('');
+      <td><button class="btn sm ghost view-type">${icon('eye')}View</button></td></tr>`).join('');
     $$('tbody tr', el).forEach((tr) => {
       const ext = tr.dataset.e;
       tr.onclick = (e) => {
-        if (e.target.closest('.view')) return drill([ext]);
+        if (e.target.closest('.view-type')) return drill([ext]);
         st.sel.has(ext) ? st.sel.delete(ext) : st.sel.add(ext);
         table();
       };

@@ -17,7 +17,7 @@ export function rulesView(root) {
     <p>Let the NAS tidy itself. Rules run on a schedule and only ever move files to the recycle bin.</p></div>
     <button class="btn primary add">${icon('folderPlus')}New rule</button></div>
     <div class="list col" style="gap:12px"></div>
-    <h3 style="margin:26px 0 10px">Suggested rules</h3><div class="grid g3 tpl"></div></div>`);
+    <h3 style="margin:26px auto 10px">Suggested rules</h3><div class="grid g3 tpl"></div></div>`);
   root.append(el);
   let rules = [];
   const save = async () => { try { rules = (await api('/rules', { rules }, 'PUT')).rules; await load(); } catch (e) { fail(e); } };
