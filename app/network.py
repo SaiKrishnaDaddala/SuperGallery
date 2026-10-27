@@ -64,6 +64,17 @@ def private_peer(value):
     except ValueError:return False
 
 
+LAN_NETWORKS=[ipaddress.ip_network(n) for n in ('10.0.0.0/8','172.16.0.0/12','192.168.0.0/16','127.0.0.0/8','169.254.0.0/16','::1/128','fc00::/7','fe80::/10')]
+
+
+def private_ip_host(hostname):
+    """A private IP typed into the address bar needs no allowlist entry: DNS rebinding relies on a
+    domain name, never an IP literal, so this keeps working when the NAS gets a new LAN address."""
+    try:ip=ipaddress.ip_address(hostname)
+    except ValueError:return False
+    return any(ip in net for net in LAN_NETWORKS)
+
+
 def apply_transport(request):
     """Run before URL evaluation or authentication. Never trust headers from arbitrary peers."""
     hostname,authority=host(request)
@@ -85,7 +96,7 @@ def apply_transport(request):
         request.state.public_origin=cfg['public_url']
         return
     local=[v.strip().lower() for v in os.getenv('ALLOWED_HOSTS','localhost,127.0.0.1,::1').split(',') if v.strip()]
-    if hostname not in local:
+    if hostname not in local and not private_ip_host(hostname):
         raise HTTPException(400,'Invalid host header. Add your local NAS name to ALLOWED_HOSTS, or configure Remote access in Settings.')
     # A public client cannot bypass local-only mode by supplying a local Host name.
     if not private_peer(peer) and peer!='testclient':

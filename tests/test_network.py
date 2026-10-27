@@ -101,3 +101,23 @@ def test_https_only_gateway_is_explicit_and_scoped(gateway,monkeypatch):
     cfg['enabled']=False;(root/'network.json').write_text(json.dumps(cfg))
     with TestClient(app,base_url='http://gallery.example.com',client=('172.18.0.1',123)) as c:
         assert c.get('/').status_code==403
+
+
+@pytest.mark.parametrize('address',['172.16.29.111','192.168.29.41','10.0.0.5'])
+def test_private_ip_addresses_work_without_an_allowlist_entry(gateway,address):
+    app,_,_=gateway
+    with TestClient(app,base_url=f'http://{address}:8800',client=('192.168.29.20',123)) as c:
+        assert c.get('/api/auth').status_code==200
+
+
+@pytest.mark.parametrize('address',['8.8.8.8','203.0.113.9','100.64.0.7','nas.attacker.example'])
+def test_public_ips_and_unknown_names_still_need_an_allowlist_entry(gateway,address):
+    app,_,_=gateway
+    with TestClient(app,base_url=f'http://{address}:8800',client=('192.168.29.20',123)) as c:
+        assert c.get('/api/auth').status_code==400
+
+
+def test_private_ip_host_does_not_let_public_clients_in(gateway):
+    app,_,_=gateway
+    with TestClient(app,base_url='http://172.16.29.111:8800',client=('8.8.4.4',123)) as c:
+        assert c.get('/api/auth').status_code==403

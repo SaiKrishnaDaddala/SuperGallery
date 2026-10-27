@@ -281,13 +281,28 @@ const SORT_FOLDERS = [
 ];
 const SORT_CARDS = [[6, 12, -14], [71, 9, 11], [28, 30, 8], [86, 34, -9], [47, 8, -6], [14, 44, 13], [62, 26, -12], [93, 15, 7],
   [36, 47, -10], [79, 50, 12], [4, 28, 9], [55, 40, -13], [22, 6, 6], [68, 44, 10], [41, 22, -8], [90, 52, -5]];
+const SCENE_KEY = 'sg-login-scene-paused';
+function scenePaused() { try { return localStorage.getItem(SCENE_KEY) === '1'; } catch { return false; } }
+function wireSceneToggle() {
+  const root = $('.login'), btn = $('.scene-toggle');
+  if (!root || !btn) return;
+  const paint = (paused) => {
+    root.classList.toggle('paused', paused);
+    btn.setAttribute('aria-pressed', String(paused));
+    btn.innerHTML = `${icon(paused ? 'play' : 'pause')}<span>${paused ? 'Play animation' : 'Pause animation'}</span>`;
+  };
+  paint(scenePaused());
+  btn.onclick = () => { const paused = !root.classList.contains('paused'); try { localStorage.setItem(SCENE_KEY, paused ? '1' : '0'); } catch { /* private mode */ } paint(paused); };
+}
+
 function loginScene() {
+  queueMicrotask(wireSceneToggle);  // runs once the caller has put the markup on the page
   const cycle = 12, folders = SORT_FOLDERS.map((f, i) => `<div class="sort-folder ${f.kind}" style="--fx:${f.x};--i:${i}"><div class="sort-folder-back"></div><div class="sort-folder-front">${icon(f.icon)}</div><span>${f.label}</span></div>`).join('');
   const cards = SORT_CARDS.map(([x, y, r], i) => {
     const f = SORT_FOLDERS[i % 4], slot = Math.floor(i / 4);
     return `<div class="sort-card ${f.kind}" style="--x0:${x};--y0:${y};--r0:${r}deg;--fx:${f.x};--slot:${slot};--delay:${(-i * cycle / SORT_CARDS.length).toFixed(2)}s;--cycle:${cycle}s"><i></i></div>`;
   }).join('');
-  return `<div class="login-scene" aria-hidden="true"><div class="login-glow g1"></div><div class="login-glow g2"></div><div class="login-glow g3"></div><div class="login-grid"></div>${cards}${folders}</div>`;
+  return `<button type="button" class="scene-toggle"></button><div class="login-scene" aria-hidden="true"><div class="login-glow g1"></div><div class="login-glow g2"></div><div class="login-glow g3"></div><div class="login-grid"></div>${cards}${folders}</div>`;
 }
 
 async function login(setup = false) {

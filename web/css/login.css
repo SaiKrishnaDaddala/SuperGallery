@@ -77,4 +77,23 @@
   .sort-card:nth-of-type(n+9) { display: none; }
   .login .card { padding: 32px 24px 24px; }
 }
-@media (prefers-reduced-motion: reduce) { .login-glow, .sort-folder-front, .login .card { animation: none; } .sort-card { animation: none; opacity: .9; } }
+/* Reduced motion: still sorting, but slower and without tilting cards or flapping folders. */
+@keyframes sort-flow-calm {
+  0% { opacity: 0; transform: translate(calc(var(--x0) * 1vw), calc(var(--y0) * 1vh)) scale(calc(.95 * var(--s))); }
+  12% { opacity: 1; transform: translate(calc(var(--x0) * 1vw), calc(var(--y0) * 1vh)) scale(calc(1 * var(--s))); }
+  60%, 70% { opacity: 1; transform: translate(calc(var(--fx) * 1vw + (var(--slot) - 1.5) * 18px), calc(var(--floor) - var(--stage))) scale(calc(.9 * var(--s))); }
+  86% { opacity: 1; transform: translate(calc(var(--fx) * 1vw), calc(var(--floor) - var(--mouth))) scale(calc(.6 * var(--s))); }
+  94%, 100% { opacity: 0; transform: translate(calc(var(--fx) * 1vw), calc(var(--floor) - var(--sink))) scale(calc(.45 * var(--s))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login .sort-card { animation: sort-flow-calm calc(var(--cycle) * 1.8) ease-in-out infinite !important; animation-delay: calc(var(--delay) * 1.8) !important; }
+  .login .login-glow, .login .sort-folder-front, .login .card { animation: none !important; }
+}
+/* Pause control for the moving background (WCAG 2.2.2); the choice is remembered. */
+.scene-toggle { position: fixed; right: 18px; bottom: 18px; z-index: 2; display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px;
+  border: 1px solid var(--line2); border-radius: 999px; background: color-mix(in srgb, var(--panel) 72%, transparent); color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.scene-toggle:hover { color: var(--text); }
+.scene-toggle svg { width: 14px; height: 14px; }
+.login.paused .sort-card, .login.paused .login-glow, .login.paused .sort-folder-front { animation-play-state: paused !important; }
+@media (max-width: 640px) { .scene-toggle { top: 14px; bottom: auto; right: 14px; } }
