@@ -20,11 +20,12 @@
   <a href="#features">Features</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="docs/UPGRADING.md">Upgrade</a> ·
-  <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new/choose">Report a bug</a> ·
+  <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new?template=bug.yml">Report a bug</a> ·
+  <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new?template=feature.yml">Request a feature</a> ·
   <a href="SECURITY.md">Security</a>
 </p>
 
-![SuperGallery library overview](docs/screenshots/library.jpg)
+![SuperGallery sign-in screen](docs/screenshots/login.jpg)
 
 SuperGallery is a self-hosted photo gallery and smart file manager for a home NAS (built and tested on UGREEN, runs anywhere Docker does). It indexes the folders you choose, finds what you remember with on-device AI search, groups people and look-alike shots, and helps you reclaim space from duplicates, screenshots and forwarded memes — without uploading anything to a cloud service.
 
@@ -71,17 +72,35 @@ See [feature controls](docs/FEATURES.md), [privacy](docs/PRIVACY.md) and [remote
 
 ## Screenshots
 
+![Library overview](docs/screenshots/library.jpg)
+
 | Sign in | Photos |
 | --- | --- |
-| ![Sign-in screen](docs/screenshots/login.jpg) | ![Photos timeline](docs/screenshots/photos.jpg) |
+| ![Sign-in screen with files sorting into folders](docs/screenshots/login.jpg) | ![Photos timeline](docs/screenshots/photos.jpg) |
 | **Duplicates** | **Similar photos** |
-| ![Duplicate finder](docs/screenshots/duplicates.jpg) | ![Similar photos](docs/screenshots/similar.jpg) |
+| ![Duplicate finder with smart select](docs/screenshots/duplicates.jpg) | ![Similar photos grouped](docs/screenshots/similar.jpg) |
 | **Collections** | **Storage insights** |
-| ![Automatic categories](docs/screenshots/categories.jpg) | ![Storage insights](docs/screenshots/storage.jpg) |
-| **Files** | **Review** |
-| ![File manager](docs/screenshots/files.jpg) | ![Review queue](docs/screenshots/review.jpg) |
-| **Dark mode** | **Phone** |
-| ![Dark mode](docs/screenshots/photos-dark.jpg) | <img src="docs/screenshots/mobile.jpg" alt="Phone layout" width="260"> |
+| ![Automatic photo and video categories](docs/screenshots/collections.jpg) | ![Storage insights and suggestions](docs/screenshots/storage.jpg) |
+| **File manager** | **File types** |
+| ![Dual-pane file manager with folder sizes](docs/screenshots/files.jpg) | ![Space by extension with bulk select](docs/screenshots/file-types.jpg) |
+| **Search** | **Review** |
+| ![Search by name, text and filters](docs/screenshots/search.jpg) | ![Review suggestions](docs/screenshots/review.jpg) |
+| **Upload** | **Settings** |
+| ![Resumable uploads](docs/screenshots/upload.jpg) | ![Security and feature settings](docs/screenshots/settings.jpg) |
+
+**Dark mode**
+
+| Sign in | Library | Duplicates |
+| --- | --- | --- |
+| ![Sign-in in dark mode](docs/screenshots/login-dark.jpg) | ![Library in dark mode](docs/screenshots/library-dark.jpg) | ![Duplicates in dark mode](docs/screenshots/duplicates-dark.jpg) |
+
+**On your phone**
+
+<p>
+  <img src="docs/screenshots/mobile-library.jpg" alt="Library on a phone" width="240">
+  <img src="docs/screenshots/mobile-photos.jpg" alt="Photos on a phone" width="240">
+  <img src="docs/screenshots/mobile-duplicates.jpg" alt="Duplicates on a phone" width="240">
+</p>
 
 ## Quick start
 
@@ -117,7 +136,7 @@ On UGREEN, create a project in **Docker → Project** from `compose.yaml` and re
 
 Releases come with source archives, SHA-256 checksums and container images with signed build provenance (`gh attestation verify oci://ghcr.io/saikrishnadaddala/supergallery:latest --owner SaiKrishnaDaddala`). The app never updates itself; see [upgrading](docs/UPGRADING.md).
 
-Bugs and ideas: [open an issue](https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new/choose) (never attach personal media, passwords, `.env` or databases). Security problems: please use [private vulnerability reporting](https://github.com/SaiKrishnaDaddala/SuperGallery/security/advisories/new) instead of a public issue — see [SECURITY.md](SECURITY.md).
+Have an idea? [Request a feature](https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new?template=feature.yml) — suggestions are welcome. Found a problem? [Report a bug](https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new?template=bug.yml) (never attach personal media, passwords, `.env` or databases). Security problems: please use [private vulnerability reporting](https://github.com/SaiKrishnaDaddala/SuperGallery/security/advisories/new) instead of a public issue — see [SECURITY.md](SECURITY.md).
 
 Pull requests are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [architecture notes](docs/ARCHITECTURE.md).
 

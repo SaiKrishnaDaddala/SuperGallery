@@ -150,7 +150,8 @@ export const thumbUrl = (it, s = 256) => it.id ? `/api/thumb?id=${it.id}&s=${s}`
 export const rawUrl = (it, dl = false) => (it.id ? `/api/raw?id=${it.id}` : `/api/raw?path=${encodeURIComponent(it.path)}`) + (dl ? '&download=1' : '');
 
 export function fileIcon(it, big = false) {
-  if (it.dir || it.cat === 'folder') return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${CAT_COLORS.folder}">${icon(it.cat === 'volume' ? 'hdd' : 'folder')}</div>`;
+  // Index rows carry dir as the parent path, not a flag, so only a literal true means folder.
+  if (it.dir === true || it.cat === 'folder') return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${CAT_COLORS.folder}">${icon(it.cat === 'volume' ? 'hdd' : 'folder')}</div>`;
   const c = extColor(it.ext, it.cat);
   if (!big && THUMBABLE.has(it.ext) && it.cat === 'image') return `<div class="ficon" style="background:${c}"><img loading="lazy" alt="" src="${thumbUrl(it)}" data-fallback="remove"></div>`;
   const label = it.ext ? it.ext.slice(0, 4) : '';

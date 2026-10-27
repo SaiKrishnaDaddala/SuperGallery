@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Search results and other file lists show photo thumbnails again instead of folder icons.
 - Sign-in animation also plays (calmer) when the device asks for reduced motion, with a remembered Pause/Play button.
 - Private network IP addresses (10.x, 172.16–31.x, 192.168.x) work without adding them to ALLOWED_HOSTS.
 - Duplicates: the recommended copy now recognises backup, download and chat folders by name (for example `Backups`, `MobileBackup`, `Downloads`, `WhatsApp Images`) and keeps the copy in camera or photo folders.
