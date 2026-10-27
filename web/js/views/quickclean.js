@@ -33,7 +33,7 @@ export function quickcleanView(root) {
     const box = el.querySelector('.items');
     box.innerHTML = '';
     for (const d of data) {
-      const row = h(`<div class="insight" style="${d.count ? '' : 'opacity:.5'}">
+      const row = h(`<div class="insight${d.count ? '' : ' is-empty'}">
         <label class="switch"><input type="checkbox" aria-label="Select ${esc(d.title)}" ${picked.has(d.key) && d.count ? 'checked' : ''} ${d.count ? '' : 'disabled'}><span></span></label>
         <div class="ic" style="background:${QC_COLOR[d.key] || '#007aff'}">${icon(d.icon)}</div><div class="grow"><div class="t">${esc(d.title)}</div><div class="d">${esc(d.desc)} · ${num(d.count)} items</div></div>
         <div class="s">${bytes(d.size)}</div><a class="btn sm ghost" href="${LINK[d.key]}">Review</a></div>`);

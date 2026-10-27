@@ -31,7 +31,7 @@ export function categoriesView(root, params, sub) {
     box.innerHTML = '';
     for (const c of r.categories) {
       const [a, b] = TINT[c.key] || TINT.other;
-      const tiles = c.sample.slice(0, 6).map((id) => `<img loading="lazy" src="/api/thumb?id=${id}&s=256" data-fallback="hide">`);
+      const tiles = c.sample.slice(0, 6).map((id) => `<img loading="lazy" alt="" src="/api/thumb?id=${id}&s=256" data-fallback="hide">`);
       while (tiles.length < 6) tiles.push(`<div class="ph" style="background:linear-gradient(145deg,${a}22,${b}33)"></div>`);
       const card = h(`<a class="card cat-card" href="#/categories/${c.key}" style="color:inherit">
         <div class="mosaic">${tiles.join('')}</div>
@@ -39,7 +39,7 @@ export function categoriesView(root, params, sub) {
           ${SAFE.has(c.key) && c.count ? '<span class="badge ok" style="margin-left:auto">safe to delete</span>' : CLEANABLE.has(c.key) && c.count ? '<span class="badge warn" style="margin-left:auto">review</span>' : ''}</div>
         <div class="d">${esc(c.desc)}</div>
         <div class="row" style="margin-top:8px"><b style="font-size:20px;letter-spacing:-.02em">${num(c.count)}</b><span class="muted">${c.video ? 'videos' : 'items'}</span><span class="grow"></span><b class="muted">${bytes(c.size)}</b></div></div></a>`);
-      if (!c.count) card.style.opacity = '.55';
+      if (!c.count) card.classList.add('is-empty');
       box.append(card);
     }
   };

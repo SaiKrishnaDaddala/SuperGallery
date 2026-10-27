@@ -93,7 +93,7 @@ export function h(html) {
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export function bytes(n, d = 1) {
   if (n == null) return '—';
-  if (n < 1024) return `${n} B`;
+  if (n < 1024) return `${Math.round(n)} B`;
   const u = ['KB', 'MB', 'GB', 'TB', 'PB'];
   let i = -1;
   do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
@@ -151,7 +151,7 @@ export const rawUrl = (it, dl = false) => (it.id ? `/api/raw?id=${it.id}` : `/ap
 export function fileIcon(it, big = false) {
   if (it.dir || it.cat === 'folder') return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${CAT_COLORS.folder}">${icon(it.cat === 'volume' ? 'hdd' : 'folder')}</div>`;
   const c = extColor(it.ext, it.cat);
-  if (!big && THUMBABLE.has(it.ext) && it.cat === 'image') return `<div class="ficon" style="background:${c}"><img loading="lazy" src="${thumbUrl(it)}" data-fallback="remove"></div>`;
+  if (!big && THUMBABLE.has(it.ext) && it.cat === 'image') return `<div class="ficon" style="background:${c}"><img loading="lazy" alt="" src="${thumbUrl(it)}" data-fallback="remove"></div>`;
   const label = it.ext ? it.ext.slice(0, 4) : '';
   return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${c}">${big || !label ? icon(CAT_ICON[it.cat] || 'file') : esc(label)}</div>`;
 }
@@ -185,6 +185,18 @@ const bus = new EventTarget();
 export const on = (ev, fn) => { bus.addEventListener(ev, fn); return () => bus.removeEventListener(ev, fn); };
 export const emit = (ev, detail) => bus.dispatchEvent(new CustomEvent(ev, { detail }));
 
+// FastAPI validation errors arrive as a list of {loc, msg}; turn any detail into a readable sentence.
+function errorText(detail) {
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => {
+      const field = Array.isArray(d?.loc) ? d.loc.filter((x) => x !== 'body' && x !== 'query').join(' ') : '';
+      return (field ? field.replace(/_/g, ' ') + ': ' : '') + (d?.msg || 'invalid value');
+    }).join('; ') || 'The request was not accepted.';
+  }
+  return detail?.msg || detail?.message || 'The request was not accepted.';
+}
+
 export async function api(path, body, method) {
   const opt = { method: method || (body !== undefined ? 'POST' : 'GET'), headers: {'X-SG-Request':'1'} };
   if (state.scope) opt.headers['X-SG-Users'] = state.scope.map(encodeURIComponent).join(',');
@@ -201,7 +213,7 @@ export async function api(path, body, method) {
   if (!r.ok) {
     let msg = r.statusText;
     try { msg = (await r.json()).detail || msg; } catch { /* not json */ }
-    throw new Error(msg);
+    throw new Error(errorText(msg));
   }
   const ct = r.headers.get('content-type') || '';
   return ct.includes('json') ? r.json() : r.text();
@@ -239,7 +251,10 @@ export function modal({ title, body, actions = [], wide = false, onOpen, icon: i
     const b = $('.modal-b', bg);
     if (typeof body === 'string') b.innerHTML = body; else if (body) b.append(body);
     let closed = false;
-    const close = (v) => { if (closed) return; closed = true; bg.close(); bg.remove(); document.removeEventListener('keydown', key, true); previous?.focus(); resolve(v); };
+    const close = (v) => { if (closed) return; closed = true; bg.close(); bg.remove(); document.removeEventListener('keydown', key, true); window.removeEventListener('hashchange', away); previous?.focus(); resolve(v); };
+    // Leaving the page (Back button, a link) cancels the dialog instead of leaving it over the next page.
+    const away = () => close(null);
+    window.addEventListener('hashchange', away);
     for (const a of actions) {
       const btn = h(`<button class="btn ${a.cls || ''}">${a.icon ? icon(a.icon) : ''}${esc(a.label)}</button>`);
       btn.onclick = async () => {

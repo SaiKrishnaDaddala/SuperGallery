@@ -12,9 +12,9 @@ export function similarView(root) {
     <div class="page-head"><div class="grow"><h1>Similar photos</h1><p class="sum">Resized copies, re-saved JPEGs, edits and burst shots.</p></div></div>
     ${scopeBanner()}
     <div class="card" style="margin-bottom:14px"><h3>${icon('wand')}Keep the best, remove the rest<span class="right row" style="gap:10px;font-size:13px"><span class="muted">Within each user</span>
-      <label class="switch"><input type="checkbox" class="peruser"><span></span></label></span></h3>
+      <label class="switch"><input type="checkbox" class="peruser" aria-label="Within each user"><span></span></label></span></h3>
       <div class="row wrap" style="gap:10px">
-        <select class="input keep">${KEEP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+        <select class="input keep" aria-label="Which photo to keep">${KEEP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
         <button class="btn primary auto">${icon('wand')}Auto-select all groups</button>
         <span class="muted" style="margin-left:14px">Match</span><div class="seg lvl">${LEVELS.map(([v, l]) => `<button data-v="${v}">${l}</button>`).join('')}</div>
         <span class="grow"></span><button class="btn ghost clear">${icon('x')}Clear</button>
@@ -50,7 +50,7 @@ export function similarView(root) {
     const best = g.files[0];
     const e = h(`<div class="group"><div class="group-head">${g.owner ? ownerChip(g.owner) : ''}<b>${num(g.files.length)} similar photos</b><span class="muted">· up to ${bytes(g.reclaim)} reclaimable</span>
       <span class="grow"></span><button class="btn sm ghost kb">Keep best only</button><button class="btn sm ghost ka">Keep all</button></div>
-      <div class="sim-row">${g.files.map((f) => `<div class="sim-card" data-id="${f.id}"><img loading="lazy" src="${thumbUrl(f, 256)}">
+      <div class="sim-row" tabindex="0" role="group" aria-label="Similar photos, scroll sideways for more">${g.files.map((f) => `<div class="sim-card" data-id="${f.id}"><img loading="lazy" alt="${esc(f.name)}" src="${thumbUrl(f, 256)}">
         <span class="tag"></span>${f.id === best.id ? '<span class="best">★ best</span>' : ''}
         <div class="info"><div class="ellipsis" title="${esc(f.path)}" style="font-weight:600">${esc(f.name)}</div>
         <div class="muted">${f.width}×${f.height} · ${bytes(f.size)}</div>

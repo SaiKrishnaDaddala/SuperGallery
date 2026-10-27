@@ -14,7 +14,7 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
   const el = h(`<div class="panel-list" style="${height ? `height:${height}` : 'flex:1;min-height:320px'}">
     <div class="selbar-slot"></div>
     <div class="vl" tabindex="0"><div class="vl-head" style="grid-template-columns:${COLS}">
-      <div><input type="checkbox" class="ck-all" title="Select all matching"></div>
+      <div><input type="checkbox" class="ck-all" title="Select all matching" aria-label="Select all matching files"></div>
       <div data-k="name">Name</div><div data-k="dir">Folder</div><div data-k="size" style="justify-content:flex-end">Size</div><div data-k="ts">Date</div></div>
       <div class="vl-inner"></div></div>
     <div class="status"></div></div>`);
@@ -71,12 +71,12 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
       const s = isSel(it) ? ' sel' : '';
       if (st.mode === 'list') {
         html.push(`<div class="vrow${s}" data-i="${i}" style="top:${r * ROW}px;grid-template-columns:${COLS}">
-          <div><input type="checkbox" ${s ? 'checked' : ''} tabindex="-1"></div>
+          <div><input type="checkbox" ${s ? 'checked' : ''} tabindex="-1" aria-label="Select ${esc(it.name)}"></div>
           <div class="fname">${fileIcon(it)}<span class="ellipsis" title="${esc(it.name)}">${esc(it.name)}</span>${it.width ? `<span class="faint" style="font-size:11.5px">${it.width}×${it.height}</span>` : ''}</div>
           <div class="muted ellipsis mono row" style="gap:6px" title="${esc(it.dir)}">${it.owner && (!state.scope || state.scope.length > 1) ? avatar(it.owner) : ''}<span class="ellipsis">${esc(shortPath(it.dir))}</span></div>
           <div class="num" style="text-align:right">${bytes(it.size)}</div><div class="muted num">${date(it.ts)}</div></div>`);
       } else {
-        const th = THUMBABLE.has(it.ext) ? `<img loading="lazy" src="${thumbUrl(it)}" data-fallback="collapse">` : fileIcon(it, true);
+        const th = THUMBABLE.has(it.ext) ? `<img loading="lazy" alt="" src="${thumbUrl(it)}" data-fallback="collapse">` : fileIcon(it, true);
         html.push(`<div class="tile${s}" data-i="${i}" style="top:${g.top + r * g.rh}px;left:${8 + c * (g.tw + 8)}px;width:${g.tw}px;height:${g.rh - 8}px">
           <div class="ck">${icon('check')}</div><div class="th">${th}${it.duration ? `<span class="vid" style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.5);color:#fff;border-radius:7px;padding:1px 6px;font-size:11px">${dur(it.duration)}</span>` : ''}</div><div class="nm">${esc(it.name)}</div><div class="meta">${bytes(it.size)}${it.width && it.cat === 'video' ? ` · ${it.height >= 2000 || it.width >= 3800 ? '4K' : it.height >= 1000 || it.width >= 1900 ? 'HD' : 'SD'}` : ''}</div></div>`);
       }
@@ -90,7 +90,7 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
     $('.ck-all', el).checked = st.all && !st.excl.size;
     $('.ck-all', el).indeterminate = n > 0 && !(st.all && !st.excl.size);
     $('.status', el).innerHTML = `<span><b style="color:var(--text)">${num(st.total)}</b> files · ${bytes(st.totalSize)}</span>${n ? `<span style="color:var(--text)">${num(n)} selected · ${bytes(selSize())}</span>` : ''}
-      <span class="grow"></span><div class="seg" style="transform:scale(.85);transform-origin:right"><button data-m="list" class="${st.mode === 'list' ? 'on' : ''}">${icon('list')}</button><button data-m="grid" class="${st.mode === 'grid' ? 'on' : ''}">${icon('grid')}</button></div>`;
+      <span class="grow"></span><div class="seg" style="transform:scale(.85);transform-origin:right"><button data-m="list" aria-label="List view" class="${st.mode === 'list' ? 'on' : ''}">${icon('list')}</button><button data-m="grid" aria-label="Thumbnail view" class="${st.mode === 'grid' ? 'on' : ''}">${icon('grid')}</button></div>`;
     $$('.status .seg button', el).forEach((b) => (b.onclick = () => { st.mode = b.dataset.m; vl.scrollTop = 0; paint(); status(); }));
     const slot = $('.selbar-slot', el);
     if (!n) { slot.innerHTML = ''; return; }

@@ -6,7 +6,7 @@ export function dupfoldersView(root) {
   const st = { perUser: localStorage.getItem('df-across') !== '1', sel: new Set(), groups: [], shown: 40 };
   const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Duplicate folders</h1>
     <p class="sum">Folders whose files are exact copies of another folder — remove a whole copy at once.</p></div>
-    <span class="row" style="gap:10px"><span class="muted">Within each user</span><label class="switch"><input type="checkbox" class="peruser"><span></span></label></span></div>
+    <span class="row" style="gap:10px"><span class="muted">Within each user</span><label class="switch"><input type="checkbox" class="peruser" aria-label="Within each user"><span></span></label></span></div>
     ${scopeBanner()}<div class="selbar hidden"></div><div class="groups"></div><div class="more" style="text-align:center"></div></div>`);
   root.append(el);
   const selbar = () => {
@@ -30,7 +30,7 @@ export function dupfoldersView(root) {
       const ge = h(`<div class="group"><div class="group-head">${icon('folder')}<div class="grow"><b>${num(g.count)} files · ${bytes(g.size)}</b>
         <div class="muted" style="font-size:12.5px">${g.folders.length} identical copies · <span class="danger-text">${bytes(g.reclaim)} reclaimable</span></div></div>
         <button class="btn sm ghost kf">Keep first only</button></div>
-        ${g.folders.map((f, i) => `<div class="gfile ${st.sel.has(f.path) ? 'del' : ''}" data-p="${esc(f.path)}"><input type="checkbox" ${st.sel.has(f.path) ? 'checked' : ''}>
+        ${g.folders.map((f, i) => `<div class="gfile ${st.sel.has(f.path) ? 'del' : ''}" data-p="${esc(f.path)}"><input type="checkbox" ${st.sel.has(f.path) ? 'checked' : ''} aria-label="Select ${esc(f.path)}">
           <div class="p ellipsis mono row" style="gap:6px">${avatar(f.owner)}<span class="ellipsis">${esc(shortPath(f.path))}</span></div>
           <span class="muted">${i === 0 ? 'shortest path' : ''}</span><span>${st.sel.has(f.path) ? '<span class="badge danger">remove</span>' : '<span class="badge ok">keep</span>'}</span>
           <a class="btn sm ghost icon" href="#/files?path=${encodeURIComponent(f.path)}" title="Open">${icon('folderOpen')}</a></div>`).join('')}</div>`);

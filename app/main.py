@@ -25,7 +25,7 @@ from .config import (APP_PASSWORD, CONFIG_DIR, DECODABLE, SCAN_INTERVAL_HOURS, S
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("supergallery")
 
-app = FastAPI(title="SuperGallery", docs_url="/api/docs", openapi_url="/api/openapi.json")
+app = FastAPI(title="SuperGallery", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
 
 from .auth_http import install as install_auth
 install_auth(app)

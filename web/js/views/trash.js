@@ -7,8 +7,8 @@ export function trashView(root) {
     <button class="btn rs">${icon('restore')}Restore all</button><button class="btn danger em">${icon('trash')}Empty recycle bin</button></div>
     <div class="selbar hidden"></div>
     <div class="filters"><input class="input sm q" placeholder="Search deleted files…" style="width:260px"></div>
-    <div class="card" style="padding:0;overflow:auto;max-height:calc(100vh - 260px)"><table class="tbl"><thead><tr><th style="width:34px"><input type="checkbox" class="all"></th>
-      <th></th><th>Name</th><th>Original location</th><th class="r">Size</th><th>Deleted</th><th>Reason</th></tr></thead><tbody></tbody></table></div></div>`);
+    <div class="card" style="padding:0;overflow:auto;max-height:calc(100vh - 260px)"><table class="tbl"><thead><tr><th style="width:34px"><input type="checkbox" class="all" aria-label="Select everything in the recycle bin"></th>
+      <th><span class="sr-only">Preview</span></th><th>Name</th><th>Original location</th><th class="r">Size</th><th>Deleted</th><th>Reason</th></tr></thead><tbody></tbody></table></div></div>`);
   root.append(el);
 
   async function load() {
@@ -21,8 +21,8 @@ export function trashView(root) {
   }
   function draw() {
     const now = Date.now() / 1000;
-    $('tbody', el).innerHTML = st.items.length ? st.items.map((t) => `<tr class="${st.sel.has(t.id) ? 'sel' : ''}" data-id="${t.id}"><td><input type="checkbox" ${st.sel.has(t.id) ? 'checked' : ''}></td>
-      <td style="width:46px"><img src="/api/trash/thumb/${t.id}" loading="lazy" style="width:34px;height:34px;object-fit:cover;border-radius:6px;display:block" data-fallback="hide"></td>
+    $('tbody', el).innerHTML = st.items.length ? st.items.map((t) => `<tr class="${st.sel.has(t.id) ? 'sel' : ''}" data-id="${t.id}"><td><input type="checkbox" ${st.sel.has(t.id) ? 'checked' : ''} aria-label="Select ${esc(t.name || 'item')}"></td>
+      <td style="width:46px"><img alt="" src="/api/trash/thumb/${t.id}" loading="lazy" style="width:34px;height:34px;object-fit:cover;border-radius:6px;display:block" data-fallback="hide"></td>
       <td class="ellipsis" style="max-width:280px">${esc(t.orig_path.split('/').pop())}</td><td class="mono muted ellipsis" style="max-width:380px">${esc(shortPath(t.orig_path.split('/').slice(0, -1).join('/')))}</td>
       <td class="r num">${bytes(t.size)}</td><td class="muted num" title="${date(t.deleted_at, true)}">${Math.floor((now - t.deleted_at) / 86400) ? Math.floor((now - t.deleted_at) / 86400) + ' days ago' : 'today'}</td><td class="muted">${esc(t.reason || '')}</td></tr>`).join('')
       : `<tr><td colspan="7"><div class="empty">${icon('trash')}<div>Recycle bin is empty</div></div></td></tr>`;

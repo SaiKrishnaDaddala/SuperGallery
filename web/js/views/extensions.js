@@ -11,10 +11,10 @@ export function extensionsView(root, params) {
     <div class="grid g2" style="margin-bottom:16px"><div class="card chart1"><h3>${icon('pie')}Space by extension</h3></div><div class="card chart2"><h3>${icon('file')}Files by extension</h3></div></div>
     <div class="selbar hidden"></div>
     <div class="filters"><input class="input sm q" placeholder="Filter extensions…" style="width:180px">
-      <select class="input sm cat"><option value="">All categories</option>${Object.entries(CAT_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+      <select class="input sm cat" aria-label="Category"><option value="">All categories</option>${Object.entries(CAT_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
     <div class="card" style="padding:0;overflow:auto;max-height:620px"><table class="tbl"><thead><tr>
-      <th style="width:34px"><input type="checkbox" class="all"></th><th class="sort" data-k="ext">Extension</th><th class="sort" data-k="cat">Category</th>
-      <th class="sort r" data-k="count">Files</th><th class="sort r" data-k="size">Total size</th><th style="width:18%"></th><th class="sort r" data-k="avg">Average</th><th class="sort r" data-k="max">Largest</th><th class="sort" data-k="newest">Newest</th><th></th></tr></thead><tbody></tbody></table></div>
+      <th style="width:34px"><input type="checkbox" class="all" aria-label="Select all file types"></th><th class="sort" data-k="ext">Extension</th><th class="sort" data-k="cat">Category</th>
+      <th class="sort r" data-k="count">Files</th><th class="sort r" data-k="size">Total size</th><th style="width:18%"><span class="sr-only">Share of space</span></th><th class="sort r" data-k="avg">Average</th><th class="sort r" data-k="max">Largest</th><th class="sort" data-k="newest">Newest</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody></tbody></table></div>
     <div class="drill" style="margin-top:16px"></div></div>`);
   root.append(el);
 
@@ -39,8 +39,8 @@ export function extensionsView(root, params) {
     let rows = st.rows.filter((r) => (!st.q || r.ext.includes(st.q.toLowerCase().replace(/^\./, ''))) && (!st.cat || r.cat === st.cat));
     rows = rows.sort((a, b) => (typeof a[st.sort] === 'string' ? a[st.sort].localeCompare(b[st.sort]) : a[st.sort] - b[st.sort]) * st.dir);
     $('tbody', el).innerHTML = rows.map((r) => `<tr class="${st.sel.has(r.ext) ? 'sel' : ''}" data-e="${esc(r.ext)}">
-      <td><input type="checkbox" ${st.sel.has(r.ext) ? 'checked' : ''}></td>
-      <td><span class="badge" style="background:${CAT_COLORS[r.cat]}22;color:${CAT_COLORS[r.cat]}">${esc(r.ext ? '.' + r.ext : '(none)')}</span></td>
+      <td><input type="checkbox" ${st.sel.has(r.ext) ? 'checked' : ''} aria-label="Select .${esc(r.ext || 'none')} files"></td>
+      <td><span class="badge tint" style="--c:${CAT_COLORS[r.cat]}">${esc(r.ext ? '.' + r.ext : '(none)')}</span></td>
       <td class="muted">${esc(CAT_LABEL[r.cat] || r.cat)}</td><td class="r num">${num(r.count)}</td><td class="r num"><b>${bytes(r.size)}</b></td>
       <td><div class="bar-track"><div class="bar-fill" style="width:${(100 * r.size) / max}%;background:${CAT_COLORS[r.cat]}"></div></div></td>
       <td class="r num muted">${bytes(r.avg)}</td><td class="r num muted">${bytes(r.max)}</td><td class="muted num">${date(r.newest)}</td>

@@ -29,7 +29,7 @@ export function rulesView(root) {
     list.innerHTML = rules.length ? '' : `<div class="card empty" style="padding:30px">${icon('wand')}<div>No rules yet — add one of the suggestions below.</div></div>`;
     for (const r of rules) {
       const row = h(`<div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 18px">
-        <label class="switch"><input type="checkbox" ${r.enabled ? 'checked' : ''}><span></span></label>
+        <label class="switch"><input type="checkbox" ${r.enabled ? 'checked' : ''} aria-label="Rule enabled"><span></span></label>
         <div class="grow" style="min-width:220px"><div style="font-weight:700">${esc(r.name)}</div>
           <div class="muted" style="font-size:12.5px">${esc(targetLabel(r.target))}${r.older_days ? ` older than ${r.older_days} days` : ''} · ${r.every} · ${r.users ? r.users.map(userLabel).map(esc).join(', ') : 'all users'}</div>
           <div class="faint" style="font-size:12px">Last run ${r.last_result ? `${ago(r.last_run)} — removed ${num(r.last_result.deleted)} (${bytes(r.last_result.freed)})` : 'never'}</div></div>
@@ -61,7 +61,7 @@ async function editRule(r) {
   const users = state.users || [];
   const body = h(`<div class="col" style="gap:12px">
     <input class="input nm" placeholder="Rule name" value="${esc(r.name)}">
-    <label class="muted">Files to clean</label><select class="input tg">${TARGETS.map(([k, l]) => `<option value="${k}" ${k === targetKey(r.target) ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <label class="muted">Files to clean</label><select class="input tg" aria-label="Rule target">${TARGETS.map(([k, l]) => `<option value="${k}" ${k === targetKey(r.target) ? 'selected' : ''}>${l}</option>`).join('')}</select>
     <div class="row"><span class="muted">Only files older than</span><input class="input od" type="number" min="0" value="${r.older_days || 0}" style="width:90px"><span class="muted">days</span></div>
     <div class="row"><span class="muted">Run</span><div class="seg ev">${['daily', 'weekly', 'monthly'].map((e) => `<button data-e="${e}" class="${r.every === e ? 'on' : ''}">${e}</button>`).join('')}</div></div>
     <label class="muted">For users</label><div class="row wrap us">${users.map((u) => `<label class="chip ${!r.users || r.users.includes(u.name) ? 'on' : ''}" data-u="${esc(u.name)}">${esc(userLabel(u.name))}</label>`).join('')}</div>

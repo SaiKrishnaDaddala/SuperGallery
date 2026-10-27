@@ -300,7 +300,7 @@ class Pane {
   }
 
   tileHtml(e, i, r, c, g) {
-    const thumb = !e.dir && THUMBABLE.has(e.ext) ? `<img loading="lazy" src="${thumbUrl(e, 256)}" data-fallback="icon" data-f='${esc(fileIcon(e, true))}'>` : fileIcon(e, true);
+    const thumb = !e.dir && THUMBABLE.has(e.ext) ? `<img loading="lazy" alt="" src="${thumbUrl(e, 256)}" data-fallback="icon" data-f='${esc(fileIcon(e, true))}'>` : fileIcon(e, true);
     return `<div class="tile" data-i="${i}" draggable="true" style="top:${g.top + r * g.rh}px;left:${8 + c * (g.tw + 10)}px;width:${g.tw}px;height:${g.rh - 10}px">
       <div class="ck">${icon('check')}</div><div class="th">${thumb}</div>
       <div class="nm" title="${esc(e.name)}">${esc(e.name)}</div>
@@ -445,7 +445,7 @@ class Pane {
 
 export function filesView(root, params) {
   const p = prefs();
-  const el = h(`<div class="view flush files-view"><div class="fm">
+  const el = h(`<div class="view flush files-view"><h1 class="sr-only">Files</h1><div class="fm">
     <div class="fm-tools">
       <button class="btn sm t-new" title="New folder (F7)">${icon('folderPlus')}New</button>
       <button class="btn sm t-up" title="Upload files or drop them onto the list">${icon('upload')}Upload</button>
@@ -465,7 +465,7 @@ export function filesView(root, params) {
       </div>
       <span class="grow"></span>
       <button class="btn sm icon ghost t-hidden" title="Show hidden files">${icon('eye')}</button>
-      <div class="seg t-mode"><button data-m="list" title="List">${icon('list')}</button><button data-m="grid" title="Thumbnails">${icon('grid')}</button></div>
+      <div class="seg t-mode"><button data-m="list" title="List" aria-label="List view">${icon('list')}</button><button data-m="grid" title="Thumbnails" aria-label="Thumbnail view">${icon('grid')}</button></div>
       <input type="range" class="t-size" min="100" max="300" step="10" title="Thumbnail size" style="width:90px">
       <button class="btn sm icon t-dual" title="Dual pane (Tab switches, F5 copy / F6 move across)">${icon('columns')}</button>
       <button class="btn sm icon t-prev" title="Preview panel">${icon('panel')}</button>
@@ -718,7 +718,7 @@ export function filesView(root, params) {
       }
       if (it.dir) return folderInsight(pv, it, pane);
       let media = '';
-      if (it.cat === 'image' && THUMBABLE.has(it.ext)) media = `<div class="pv-media"><img src="${thumbUrl(it, 512)}" data-fallback="remove"></div>`;
+      if (it.cat === 'image' && THUMBABLE.has(it.ext)) media = `<div class="pv-media"><img alt="${esc(it.name)}" src="${thumbUrl(it, 512)}" data-fallback="remove"></div>`;
       else if (it.cat === 'video') media = `<div class="pv-media"><video src="${rawUrl(it)}" poster="${THUMBABLE.has(it.ext) ? thumbUrl(it, 512) : ''}" controls preload="none"></video></div>`;
       else if (it.cat === 'audio') media = `<div style="padding:16px"><audio src="${rawUrl(it)}" controls style="width:100%"></audio></div>`;
       else if (it.ext === 'pdf') media = `<iframe src="${rawUrl(it)}" style="width:100%;height:420px;border:0;background:#fff"></iframe>`;

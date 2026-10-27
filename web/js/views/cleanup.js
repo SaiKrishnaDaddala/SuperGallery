@@ -21,7 +21,7 @@ export function cleanupView(root, params, sub) {
         <div class="grow"><div style="font-weight:600">${esc(c.title)}</div><div class="muted" style="font-size:12.5px">${esc(c.desc)}</div></div></div>
         <div class="row" style="margin-top:14px"><span class="v" style="font-size:20px;font-weight:700">${num(c.count)}</span><span class="muted">${c.key === 'empty_folders' ? 'folders' : 'files'}</span><span class="grow"></span>
         ${c.size ? `<b>${bytes(c.size)}</b>` : ''}</div></a>`);
-      if (!c.count) card.style.opacity = '.55';
+      if (!c.count) card.classList.add('is-empty');
       $('.cards', el).append(card);
     }
   }).catch(fail);

@@ -16,9 +16,9 @@ export function duplicatesView(root, params) {
     ${scopeBanner()}
     <div class="card" style="margin-bottom:14px">
       <h3>${icon('wand')}Smart select<span class="right row" style="gap:10px;font-size:13px"><span class="muted">Within each user</span>
-        <label class="switch" title="On: only copies owned by the same user count as duplicates. Off: compare across the selected users."><input type="checkbox" class="peruser"><span></span></label></span></h3>
+        <label class="switch" title="On: only copies owned by the same user count as duplicates. Off: compare across the selected users."><input type="checkbox" class="peruser" aria-label="Within each user"><span></span></label></span></h3>
       <div class="row wrap" style="gap:10px">
-        <select class="input keep">${KEEP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+        <select class="input keep" aria-label="Which copy to keep">${KEEP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
         <button class="btn prefer">${icon('star')}<span>Prefer keeping files in…</span></button>
         <button class="btn only">${icon('trash')}<span>Only delete copies in…</span></button>
         <button class="btn primary auto">${icon('wand')}Auto-select duplicates</button>
@@ -29,11 +29,11 @@ export function duplicatesView(root, params) {
     </div>
     <div class="selbar hidden"></div>
     <div class="filters">
-      <select class="input sm f-cat"><option value="">All types</option>${Object.entries(CAT_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
-      <select class="input sm f-min"><option value="">Any size</option><option value="102400">≥ 100 KB</option><option value="1048576">≥ 1 MB</option><option value="10485760">≥ 10 MB</option><option value="104857600">≥ 100 MB</option><option value="1073741824">≥ 1 GB</option></select>
+      <select class="input sm f-cat" aria-label="File type"><option value="">All types</option>${Object.entries(CAT_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+      <select class="input sm f-min" aria-label="Minimum size"><option value="">Any size</option><option value="102400">≥ 100 KB</option><option value="1048576">≥ 1 MB</option><option value="10485760">≥ 10 MB</option><option value="104857600">≥ 100 MB</option><option value="1073741824">≥ 1 GB</option></select>
       <button class="btn sm f-dir">${icon('folder')}<span>${st.filter.dir ? esc(shortPath(st.filter.dir)) : 'All folders'}</span></button>
       <span class="grow"></span><span class="muted">Sort</span>
-      <select class="input sm f-sort"><option value="wasted">Most wasted space</option><option value="count">Most copies</option><option value="size">Largest file</option></select>
+      <select class="input sm f-sort" aria-label="Sort groups"><option value="wasted">Most wasted space</option><option value="count">Most copies</option><option value="size">Largest file</option></select>
     </div>
     <div class="groups"></div><div class="more-slot" style="text-align:center;padding:10px"></div></div>`);
   root.append(el);
@@ -65,12 +65,12 @@ export function duplicatesView(root, params) {
 
   function groupEl(g) {
     const f0 = g.files[0];
-    const thumb = THUMBABLE.has(f0.ext) ? `<img class="group-thumb" loading="lazy" src="${thumbUrl(f0)}" data-fallback="hide">` : `<div class="group-thumb" style="display:grid;place-items:center">${icon('file')}</div>`;
+    const thumb = THUMBABLE.has(f0.ext) ? `<img class="group-thumb" loading="lazy" alt="" src="${thumbUrl(f0)}" data-fallback="hide">` : `<div class="group-thumb" style="display:grid;place-items:center">${icon('file')}</div>`;
     const el2 = h(`<div class="group"><div class="group-head">${thumb}<div class="grow" style="min-width:0"><div class="ellipsis" style="font-weight:600">${esc(f0.name)}</div>
       <div class="muted" style="font-size:12.5px">${num(g.count)} copies × ${bytes(g.size)} · <span class="danger-text">${bytes(g.wasted)} wasted</span></div></div>
       ${g.owner ? ownerChip(g.owner) : ''}
       <button class="btn sm ghost kf" title="${esc(g.recommendation||'Keep one copy')}">Keep recommended copy</button></div>
-      ${g.files.map((f) => `<div class="gfile" data-id="${f.id}"><input type="checkbox"><div class="p ellipsis mono row" style="gap:6px" title="${esc(f.path)}">${g.owner ? '' : avatar(f.owner)}<span class="ellipsis">${esc(shortPath(f.path))}</span></div>
+      ${g.files.map((f) => `<div class="gfile" data-id="${f.id}"><input type="checkbox" aria-label="Select ${esc(f.name)}"><div class="p ellipsis mono row" style="gap:6px" title="${esc(f.path)}">${g.owner ? '' : avatar(f.owner)}<span class="ellipsis">${esc(shortPath(f.path))}</span></div>
         <span class="muted num">${date(f.mtime)}${f.id===g.recommended_id?' · recommended':''}</span><span class="tag"></span><button class="btn sm ghost icon op" title="Open folder">${icon('folderOpen')}</button></div>`).join('')}<p class="muted" style="padding:10px 16px;font-size:12px">${esc(g.recommendation||'One copy is always kept.')} Recycling checks that the kept copy is still available and unchanged.</p></div>`);
     $$('.gfile', el2).forEach((r) => {
       const f = g.files.find((x) => x.id === +r.dataset.id);

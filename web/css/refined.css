@@ -468,3 +468,22 @@ dialog.lightbox:not([open]) { display:none; }
   .muted,.faint,.page-head p { color:var(--text); }
   .btn { border:1px solid currentColor!important; }
 }
+
+/* Accessible contrast (WCAG AA 4.5:1): links, text on filled buttons, secondary text, status colours. */
+:root { --accent:#0066cc; --accent-hover:#0058b0; --accent-fill:var(--accent); --faint:#6b6b72; --danger-text:#c0001a; --ok-text:#1b7a35; --ok-fill:#1b7a35; }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) { --accent-fill:#0a6edb; --danger-text:#ff6961; --ok-fill:#1b7a35; } }
+:root[data-theme="dark"] { --accent-fill:#0a6edb; --danger-text:#ff6961; --ok-fill:#1b7a35; }
+.nav a.active,.side-foot > a.active,.btn.primary,.vrow.sel,.ctx button:hover { background:var(--accent-fill); }
+.danger-text,.btn.danger { color:var(--danger-text); }
+.sim-card.keep .tag { background:var(--ok-fill); }
+.badge.tint { background:color-mix(in srgb,var(--c) 14%,transparent); color:color-mix(in srgb,var(--c) 55%,#000); }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) .badge.tint { color:color-mix(in srgb,var(--c) 55%,#fff); } }
+:root[data-theme="dark"] .badge.tint { color:color-mix(in srgb,var(--c) 55%,#fff); }
+.insight.is-empty .ic,.insight.is-empty .switch,.cat-card.is-empty .mosaic,.cat-card.is-empty .avatar,.is-empty .kpi > :first-child { opacity:.45; }
+.insight.is-empty .t,.cat-card.is-empty .t,.is-empty .kpi .grow > :first-child { color:var(--muted); }
+/* Comfortable touch targets for small text links; the empty recycle bin message stays centred when its table scrolls. */
+@media (max-width:640px) {
+  .storage-legend a,.home-footer a,.release-info a { min-height:32px; display:inline-flex; align-items:center; }
+  .tbl td[colspan]:has(> .empty) { padding:0; }
+  .tbl td[colspan] > .empty { position:sticky; left:0; width:calc(100vw - 40px); box-sizing:border-box; }
+}

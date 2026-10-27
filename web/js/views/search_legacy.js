@@ -33,9 +33,9 @@ export function searchView(root, params) {
       <input class="input sm f-ext" placeholder="Extensions: jpg, png" style="width:150px">
       <input class="input sm f-min" placeholder="Min size (10 MB)" style="width:120px">
       <input class="input sm f-max" placeholder="Max size" style="width:100px">
-      <span class="muted">Date</span><input type="date" class="input sm f-after"><span class="muted">–</span><input type="date" class="input sm f-before">
+      <span class="muted">Date</span><input type="date" class="input sm f-after" aria-label="Modified after"><span class="muted">–</span><input type="date" class="input sm f-before" aria-label="Modified before">
       <button class="btn sm f-dir">${icon('folder')}<span>Everywhere</span></button>
-      <select class="input sm f-smart"><option value="">Any kind</option>${Object.entries(SMART_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+      <select class="input sm f-smart" aria-label="Smart filter"><option value="">Any kind</option>${Object.entries(SMART_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       <label class="chk"><input type="checkbox" class="f-dupes"> Only duplicates</label>
       <button class="btn sm ghost f-reset">${icon('x')}Reset</button>
     </div></div>`);

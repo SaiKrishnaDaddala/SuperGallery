@@ -305,9 +305,38 @@ def duplicates(f: dict, limit=50, offset=0, sort="wasted", per_user=True) -> dic
             recommended = _pick_keeper(files,'recommended',None)
             out.append({"hash": g["hash"], "owner": g["owner"] if per_user else None, "size": g["size"],
                         "count": g["n"], "wasted": g["wasted"], "files": files,
-                        "recommended_id":recommended['id'], "recommendation":"Identical contents. Prefer a camera/original folder, fewer copy suffixes, then the older copy."})
+                        "recommended_id":recommended['id'], "recommendation":"Identical contents. Keeps the copy outside backup, download and chat folders, preferring camera and photo folders, then the older copy."})
     return {"groups": summary[0], "extra_files": summary[1], "wasted": summary[2], "items": out,
             "per_user": per_user}
+
+
+_JUNK_WORDS = {"trashed", "cache", "thumbnail"}
+_COPY_WORDS = {"backup", "whatsapp", "telegram", "download", "received", "sent", "export", "copy", "duplicate", "temp", "tmp"}
+_ORIGINAL_WORDS = {"dcim", "camera", "original", "photo", "picture"}
+
+
+def _folder_words(path: str) -> set:
+    """Words in the folders below the library root: 'MobileBackup/Phone backups' -> {mobile, backup, phone}."""
+    for root in SCAN_ROOTS:
+        if path.startswith(root.rstrip("/") + "/"):
+            path = path[len(root.rstrip("/")) + 1:]
+            break
+    words = set()
+    for folder in path.split("/")[:-1]:
+        for token in re.findall(r"[A-Za-z0-9]+", folder):
+            # Keep the whole word ('WhatsApp') and its camel-case parts ('MobileBackup' -> mobile, backup).
+            for w in {token, *re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])|\d+", token)}:
+                w = w.lower()
+                words.add(w[:-1] if len(w) > 3 and w.endswith("s") else w)
+    return words
+
+
+def _recommended_rank(x: dict) -> tuple:
+    """Lower is better: not junk, not a backup/forwarded/downloaded copy, from a camera/photos folder,
+    no 'copy'/'(1)' suffix, then the older and shorter path."""
+    words = _folder_words(x["path"])
+    return (bool(words & _JUNK_WORDS), bool(words & _COPY_WORDS), not (words & _ORIGINAL_WORDS),
+            bool(re.search(r"(?i)(?:copy|\(\d+\))", x["name"])), x["mtime"], len(x["path"]), x["id"])
 
 
 def _pick_keeper(files: list, keep: str, prefer_dir: str | None):
@@ -317,10 +346,7 @@ def _pick_keeper(files: list, keep: str, prefer_dir: str | None):
         pref = [x for x in files if x["path"].startswith(pd)]
         pool = pref or files
     keyf = {
-        "recommended": lambda x: (any(t in x['path'].lower() for t in ('/.trashed','/cache/','/thumbnails/')),
-            not any(t in x['path'].lower() for t in ('/dcim/','/camera/','/originals/')),
-            any(t in x['path'].lower() for t in ('/backup/','/whatsapp/','/download/')),
-            bool(re.search(r'(?i)(?:copy|\(\d+\))',x['name'])),x['mtime'],len(x['path']),x['id']),
+        "recommended": _recommended_rank,
         "oldest": lambda x: (x["mtime"], len(x["path"])),
         "newest": lambda x: (-x["mtime"], len(x["path"])),
         "shortest_path": lambda x: (len(x["path"]), x["path"]),

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Duplicates: the recommended copy now recognises backup, download and chat folders by name (for example `Backups`, `MobileBackup`, `Downloads`, `WhatsApp Images`) and keeps the copy in camera or photo folders.
+- Error messages from rejected requests are shown as readable text instead of "[object Object]".
+- Dialogs close when you navigate away (for example with the browser Back button).
+- Accessibility: descriptions for thumbnails, checkboxes, dropdowns and icon buttons; WCAG AA contrast for links, buttons, badges and secondary text in light and dark mode; keyboard access to similar-photo rows.
+- Phone: larger touch targets for small links; the empty recycle bin message stays centred.
+- Small sizes are rounded (no more "263.3333 B"); the unused ReDoc page is disabled.
+
 ## 2.4.0 — 2026-10-27
 
 First public source release, based on the earlier private 2.3 application.
