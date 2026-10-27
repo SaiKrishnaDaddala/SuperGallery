@@ -155,7 +155,9 @@ export function fileIcon(it, big = false) {
   const c = extColor(it.ext, it.cat);
   if (!big && THUMBABLE.has(it.ext) && it.cat === 'image') return `<div class="ficon" style="background:${c}"><img loading="lazy" alt="" src="${thumbUrl(it)}" data-fallback="remove"></div>`;
   const label = it.ext ? it.ext.slice(0, 4) : '';
-  return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${c}">${big || !label ? icon(CAT_ICON[it.cat] || 'file') : esc(label)}</div>`;
+  if (big || !label) return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${c}">${icon(CAT_ICON[it.cat] || 'file')}</div>`;
+  // Text labels sit on a darker shade of the colour so white text stays readable (WCAG AA).
+  return `<div class="ficon" style="background:color-mix(in srgb,${c} 60%,#000)">${esc(label)}</div>`;
 }
 
 // ---------------------------------------------------------------- state & API
