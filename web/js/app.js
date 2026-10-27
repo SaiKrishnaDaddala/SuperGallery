@@ -70,7 +70,7 @@ function shell() {
   shellCleanup();
   document.body.innerHTML = '';
   const app = h(`<div id="app">
-    <aside class="sidebar" id="navigation"><a class="brand" href="#/dashboard"><div class="logo">${icon('layers')}</div><span>SuperGallery<small>Your personal library</small></span></a>
+    <aside class="sidebar" id="navigation"><a class="brand" href="#/dashboard"><div class="logo"><img src="/static/icons/icon.svg" alt=""></div><span>SuperGallery<small>Your personal library</small></span></a>
       <nav class="nav" aria-label="Main navigation">${filteredNav(NAV).map(([sec, items], index) => `${index === 2 ? '<details class="more-tools"><summary>More tools ' + icon('down') + '</summary>' : '<h6>' + sec + '</h6>'}${items.map(([k, label, ic, badge]) => `<a href="#/${k}" data-k="${k}" title="${label}">${icon(ic)}<span>${label}</span>${badge ? `<span class="badge b-${badge} hidden"></span>` : ''}</a>`).join('')}${index === 2 ? '</details>' : ''}`).join('')}
         <div class="bm"></div></nav>
       <div class="side-foot"><a href="#/trash" data-k="trash">${icon('trash')}<span>Recently deleted</span><span class="badge b-trash hidden"></span></a><a href="#/settings" data-k="settings">${icon('settings')}<span>Settings</span></a><div class="library-health"><span class="status-dot"></span><span class="connection-label">Connecting to your NAS</span><button class="btn ghost sm icon collapse" title="Collapse sidebar" aria-label="Collapse sidebar">${icon('panel')}</button></div></div></aside>
@@ -294,7 +294,7 @@ async function login(setup = false) {
   stopPolling();
   teardown?.(); teardown = null; shellCleanup();
   window.onhashchange=null;
-  document.body.innerHTML = `<div class="login">${loginScene()}<div class="card"><div class="brand" style="padding:0"><div class="logo">${icon('layers')}</div><span>SuperGallery</span></div>
+  document.body.innerHTML = `<div class="login">${loginScene()}<div class="card"><div class="brand" style="padding:0"><div class="logo"><img src="/static/icons/icon.svg" alt=""></div><span>SuperGallery</span></div>
     ${setup ? '<p class="muted" style="margin-top:0">Welcome! Create the password that protects this app. It can delete files, so pick a strong one.</p>' : ''}
     <p class="login-welcome">Your memories. Beautifully in order.</p><form class="col"><input class="input p1" type="password" aria-label="Password" autocomplete="${setup ? 'new-password' : 'current-password'}" placeholder="${setup ? 'New password (12+ characters)' : 'Password'}" autofocus>
     ${setup ? '<input class="input p2" type="password" placeholder="Repeat password">' : ''}

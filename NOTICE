@@ -1,0 +1,23 @@
+SuperGallery
+Copyright 2026 Sai Krishna Daddala
+
+Created and maintained by Sai Krishna Daddala
+https://github.com/SaiKrishnaDaddala
+Original project: https://github.com/SaiKrishnaDaddala/SuperGallery
+
+This product includes software developed by Sai Krishna Daddala.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE). Under section 4
+of that license, anyone who redistributes SuperGallery, or a modified version
+or other work based on it (including forks, new repositories, container images
+and hosted services), must:
+
+  * keep a copy of the LICENSE and this NOTICE file with it,
+  * keep the copyright and attribution notices in the source, and
+  * mark files they changed.
+
+Please credit the original work visibly, for example:
+"Based on SuperGallery by Sai Krishna Daddala
+(https://github.com/SaiKrishnaDaddala/SuperGallery)".
+
+Third-party components keep their own licenses; see THIRD_PARTY_NOTICES.md.

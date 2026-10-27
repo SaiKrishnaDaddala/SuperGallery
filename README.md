@@ -1,47 +1,93 @@
-# SuperGallery
+<p align="center">
+  <img src="web/icons/icon.svg" width="112" height="112" alt="SuperGallery icon">
+</p>
 
-**Find what you remember. Keep your library on your NAS.**
+<h1 align="center">SuperGallery</h1>
 
-![SuperGallery — Find what you remember](docs/assets/supergallery-cover.png)
+<p align="center">
+  <b>Your photos, videos and files — searchable, sorted and cleaned up, on your own NAS.</b><br>
+  Created by <a href="https://github.com/SaiKrishnaDaddala">Sai Krishna Daddala</a>
+</p>
 
-*Concept artwork with fictional media; the illustration is not a product screenshot.*
+<p align="center">
+  <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/actions/workflows/ci.yml"><img src="https://github.com/SaiKrishnaDaddala/SuperGallery/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/pkgs/container/supergallery"><img src="https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker&logoColor=white" alt="Docker image"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache-2.0 license"></a>
+</p>
 
-SuperGallery is a self-hosted photo, video and file library with local visual search, face grouping, document search and cleanup tools. Search for “people cycling” or “drinking water”, name groups of familiar faces, and find text inside supported documents without uploading the library to a search service.
+<p align="center">
+  <a href="#quick-start">Install</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="docs/UPGRADING.md">Upgrade</a> ·
+  <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new/choose">Report a bug</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
 
-[Install](docs/INSTALL.md) · [Download releases](https://github.com/SaiKrishnaDaddala/SuperGallery/releases) · [Upgrade](docs/UPGRADING.md) · [Report a bug](https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new/choose) · [Security](SECURITY.md)
+![SuperGallery library overview](docs/screenshots/library.jpg)
 
-## What it helps with
+SuperGallery is a self-hosted photo gallery and smart file manager for a home NAS (built and tested on UGREEN, runs anywhere Docker does). It indexes the folders you choose, finds what you remember with on-device AI search, groups people and look-alike shots, and helps you reclaim space from duplicates, screenshots and forwarded memes — without uploading anything to a cloud service.
 
-| Everyday problem | SuperGallery's approach | What to expect |
-| --- | --- | --- |
-| You remember a scene but not a filename | Local text-to-image search | Ranked suggestions, not guaranteed recognition; indexing is required |
-| Photos and documents are scattered across folders | Browse mounted folders through one library | Originals remain in their folders; only explicitly mounted folders are accessible |
-| A useful moment is buried in a video | Search sampled frames and open a timestamp | Sampling can miss brief moments; there is no audio transcription |
-| A receipt or screenshot is hard to find | Local OCR and document text extraction | Recognition depends on language, image quality and format |
-| Similar photos and copies waste space | Review duplicate groups and cleanup suggestions | Review before applying changes; keep an independent backup |
-| A large app has tools you never use | Enable or disable nine optional capabilities | Settings are instance-wide; disabled indexes are retained |
-| You want access away from home | Explicit external HTTPS address, trusted proxy and required MFA | You supply the gateway; this app does not create a tunnel |
-
-These are workflow benefits, not claims that every commercial gallery lacks these capabilities. You operate the storage, backups, updates and network access yourself.
+*All screenshots use a generated demo library (`tools/make_demo_library.py`); no personal media is shown.*
 
 ## Features
 
-- Responsive gallery, folders, timelines, search filters and a keyboard command palette.
-- Local photo meaning search with CLIP, video scene search, OCR and document text.
-- Local face grouping with manual names. Similarity is imperfect and does not verify identity.
-- Smart albums that update as matching files change.
-- Resumable indexing jobs with progress, pause/cancel controls and a persistent queue.
-- Duplicate and similar-photo review, reversible trash, uploads and optional cleanup rules.
-- Password sign-in, authenticator codes, recovery codes and session management.
-- App-data backup/restore and feature controls in Settings.
+### Gallery and search
+- **Photos timeline** grouped by month with a year/month scrubber, adjustable grid size and a full-screen viewer for photos, videos, audio and PDFs.
+- **Search by meaning** — type "sunset at the beach" or "people cycling" and get matching photos, using a local CLIP model (no cloud).
+- **Video scene search** — finds the moment inside a video and opens it at that timestamp.
+- **Text in images and documents** — on-device OCR for receipts and screenshots, plus text extraction from PDFs and office documents.
+- **People** — local face grouping with names you assign.
+- **Smart albums** that keep themselves up to date from a saved search.
+- **Command palette** (Ctrl K) and search filters such as `type:video larger:100mb after:2025-01-01`.
 
-Celebrity lookup is optional, disabled by default and requires a separately configured AWS account. It sends selected face images to Amazon Rekognition when explicitly used. All core search and grouping features work locally. See [privacy](docs/PRIVACY.md).
+### File manager
+- Keyboard-driven, dual-pane file manager with list and grid views that stay fast with 100,000+ entries: previews, multi-select, drag-and-drop moves, rename, bulk rename with preview and new folders.
+- **Resumable uploads** of very large files with checksums, plus ZIP download of folders.
+- **Recently deleted** recycle bin with restore and configurable retention — deletes are never immediate.
+- Per-user libraries: pick one person, several, or everyone; duplicates are judged within each person's own files.
+
+### Cleanup and storage
+- **Duplicates** — exact copies found by content hash, with "keep the recommended copy", "prefer keeping files in…" and a safety lock that always keeps one copy.
+- **Similar photos** — burst shots, resized and re-saved copies grouped together; keep the best, remove the rest.
+- **Collections** — automatic categories: camera photos, WhatsApp/chat images and memes, screenshots, documents and receipts, low quality, blurry, dark and more.
+- **Review** — the best clean-up suggestions in one place, including recommendations learned from what you deleted before.
+- **Storage insights** — space by type, top extensions, size distribution, largest files, duplicate folders and delete-by-extension.
+- **Cleanup rules** (optional) that run on a schedule.
+
+### Built for a NAS
+- Fast incremental scans and background indexing with progress, pause and cancel; built to handle large libraries.
+- Installable as an app (PWA) on desktop and phone, with a light and dark theme and a phone layout with tab bar.
+- Nine feature switches so you only run what you need.
+- App-data backup and restore from Settings.
+
+### Security
+- Password sign-in with optional authenticator codes (TOTP) and one-time recovery codes; revocable sessions.
+- HTTPS by default with a locally generated certificate, host allow-list, CSRF protection and a strict Content-Security-Policy.
+- Local-network only by default; remote access must be switched on deliberately and requires two-step verification.
+- Library mounted read-only on first run; the container drops all Linux capabilities.
+
+See [feature controls](docs/FEATURES.md), [privacy](docs/PRIVACY.md) and [remote access](docs/REMOTE_ACCESS.md) for details. Optional celebrity lookup uses Amazon Rekognition and is off by default; every other feature works fully offline.
+
+## Screenshots
+
+| Sign in | Photos |
+| --- | --- |
+| ![Sign-in screen](docs/screenshots/login.jpg) | ![Photos timeline](docs/screenshots/photos.jpg) |
+| **Duplicates** | **Similar photos** |
+| ![Duplicate finder](docs/screenshots/duplicates.jpg) | ![Similar photos](docs/screenshots/similar.jpg) |
+| **Collections** | **Storage insights** |
+| ![Automatic categories](docs/screenshots/categories.jpg) | ![Storage insights](docs/screenshots/storage.jpg) |
+| **Files** | **Review** |
+| ![File manager](docs/screenshots/files.jpg) | ![Review queue](docs/screenshots/review.jpg) |
+| **Dark mode** | **Phone** |
+| ![Dark mode](docs/screenshots/photos-dark.jpg) | <img src="docs/screenshots/mobile.jpg" alt="Phone layout" width="260"> |
 
 ## Quick start
 
-Use a Linux Docker host with Docker Compose v2 (x86-64 is the tested platform; an arm64 image is also published). Start with a small library and read-only access. The image already contains the pinned, checksum-verified models; allow additional space for the index, thumbnails and backups. CPU indexing may take substantial time on a large library. GPU configurations are not validated.
+You need a Linux host with Docker and Docker Compose v2 — a UGREEN (or other) NAS with Docker works well. Images are published for **x86-64** (tested) and **arm64**.
 
-Ready-built images are published to the GitHub Container Registry by CI after every tested change: `ghcr.io/saikrishnadaddala/supergallery:latest`, plus release tags such as `:2.4.0`. You only need `compose.yaml` and `.env`:
+Every change that passes the test suite is published as `ghcr.io/saikrishnadaddala/supergallery:latest`; releases also get version tags such as `:2.4.0`. You only need two files:
 
 ```sh
 mkdir supergallery && cd supergallery
@@ -51,22 +97,38 @@ curl -fsSL https://raw.githubusercontent.com/SaiKrishnaDaddala/SuperGallery/main
 docker compose up -d
 ```
 
-To update to the newest version later, run `docker compose pull && docker compose up -d`. To build from source instead, clone the repository and run `docker compose -f compose.yaml -f compose.build.yaml up -d --build`.
+Open `https://YOUR_NAS_HOST:8843`, check the certificate, create your password and turn on two-step verification in Settings. There are no default credentials. Then start a scan.
 
-Open `https://YOUR_NAS_HOST:8843`, verify the NAS certificate, create your own password, and enable two-step verification in Settings. Scan your selected library, then start the indexes you want. There are no default credentials. The [installation guide](docs/INSTALL.md) includes UGREEN Docker steps, certificate handling and writable-library setup.
+**Update to the latest version at any time:**
 
-## Deployment scope
+```sh
+docker compose pull && docker compose up -d
+```
 
-This release is a Docker-hosted web application. It is not an Apple product and is not affiliated with Apple or UGREEN. It does not automatically appear in the UGREEN mobile app catalog. UGREEN native package distribution requires vendor approval and is not included in this release. Mobile browsers can use the responsive app.
+On UGREEN, create a project in **Docker → Project** from `compose.yaml` and redeploy it to update. The [installation guide](docs/INSTALL.md) covers UGREEN step by step, certificates and enabling file changes. To build from source instead: `docker compose -f compose.yaml -f compose.build.yaml up -d --build`.
 
-The shared application login grants access to all mounted library content. Folder-owner filters are organizational filters, **not account isolation or NAS ACL enforcement**. Do not expose a multi-user NAS root to people who should see only one folder. Use separate instances and narrowly scoped mounts instead.
+## Good to know
 
-## Updates and contributions
+- One shared login sees all mounted folders. Per-person filters organize the library; they are not separate accounts. Mount only what everyone may see.
+- Keep an independent backup of your originals. Clean-up actions go to the recycle bin first, but review before you delete.
+- Not affiliated with UGREEN or Apple. This is a Docker web app, not a native UGREEN package.
 
-Releases use versioned Git tags, source archives with SHA-256 checksums, and container images with signed build provenance (`gh attestation verify oci://ghcr.io/saikrishnadaddala/supergallery:latest --owner SaiKrishnaDaddala`). Updates are explicit: back up, review release notes, then pull. The app never updates itself. [Upgrade and rollback instructions](docs/UPGRADING.md).
+## Updates and contributing
 
-Use [Issues](https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new/choose) for bugs and feature requests. Never attach personal media, passwords, `.env`, database files, authenticator secrets or unredacted logs. Security reports belong in [private vulnerability reporting](https://github.com/SaiKrishnaDaddala/SuperGallery/security/advisories/new), not public issues.
+Releases come with source archives, SHA-256 checksums and container images with signed build provenance (`gh attestation verify oci://ghcr.io/saikrishnadaddala/supergallery:latest --owner SaiKrishnaDaddala`). The app never updates itself; see [upgrading](docs/UPGRADING.md).
 
-Contributors can start with [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [feature controls](docs/FEATURES.md) and [remote access](docs/REMOTE_ACCESS.md).
+Bugs and ideas: [open an issue](https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new/choose) (never attach personal media, passwords, `.env` or databases). Security problems: please use [private vulnerability reporting](https://github.com/SaiKrishnaDaddala/SuperGallery/security/advisories/new) instead of a public issue — see [SECURITY.md](SECURITY.md).
 
-MIT licensed application source. Third-party models, libraries and system packages retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Pull requests are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [architecture notes](docs/ARCHITECTURE.md).
+
+## Credits
+
+**SuperGallery was created and is maintained by [Sai Krishna Daddala](https://github.com/SaiKrishnaDaddala).**
+
+If you use, fork, modify or redistribute SuperGallery, keep the [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) files and credit the original project, for example: *"Based on SuperGallery by Sai Krishna Daddala"* with a link to this repository.
+
+SuperGallery stands on great open-source work — CLIP, OpenCV Zoo face models, RapidOCR, FFmpeg, FastAPI, Pillow, Lucide icons and more. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## License
+
+Copyright 2026 Sai Krishna Daddala. Licensed under the [Apache License 2.0](LICENSE). Redistributions and derivative works must retain the copyright notice and the attribution in [`NOTICE`](NOTICE). Third-party models, libraries and system packages keep their own licenses.

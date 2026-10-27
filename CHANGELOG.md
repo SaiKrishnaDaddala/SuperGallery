@@ -8,7 +8,7 @@ First public source release, based on the earlier private 2.3 application.
 - Added explicit external HTTPS origin, exact trusted proxy configuration and a local-only remote-access switch.
 - Fixed UGREEN Docker remote host rejection and HTTPS gateway handling while retaining mandatory remote MFA.
 - Hardened recursive ZIP downloads to skip symlinks and excluded folders and recheck path boundaries.
-- Added source installation, upgrades, rollback, privacy, security and contributor documentation; MIT application license and third-party notices.
+- Added source installation, upgrades, rollback, privacy, security and contributor documentation; Apache-2.0 license with a NOTICE file crediting the original author, and third-party notices.
 - Added pinned, checksum-verified model downloads, release checks, CI, issue forms and source release archives.
 - Published tested multi-arch container images to `ghcr.io/saikrishnadaddala/supergallery` with SBOM and signed build provenance; `compose.yaml` now pulls the image, and `compose.build.yaml` builds from source.
 - Added a strict Content-Security-Policy (scripts only from the app itself) and removed inline event handlers.

@@ -23,6 +23,6 @@ export function featureCard(host) {
       catch(error){fail(error);}finally{busy=false;draw();$(`[data-feature="${key}"]`,el)?.focus();}
     });
   }
-  api('/features').then(result=>{if(!alive)return;catalog=result.catalog;state.features=result.values;$('.release-info',el).innerHTML=`<span>SuperGallery ${esc(result.version)}</span><a href="https://github.com/SaiKrishnaDaddala/SuperGallery/releases" target="_blank" rel="noopener noreferrer">Releases and updates ${icon('right')}</a>`;draw();}).catch(fail);
+  api('/features').then(result=>{if(!alive)return;catalog=result.catalog;state.features=result.values;$('.release-info',el).innerHTML=`<span>SuperGallery ${esc(result.version)} · Created by <a href="https://github.com/SaiKrishnaDaddala" target="_blank" rel="noopener noreferrer">Sai Krishna Daddala</a></span><a href="https://github.com/SaiKrishnaDaddala/SuperGallery/releases" target="_blank" rel="noopener noreferrer">Releases and updates ${icon('right')}</a>`;draw();}).catch(fail);
   const off=on('features',()=>{if(!busy)draw();});return()=>{alive=false;off();};
 }

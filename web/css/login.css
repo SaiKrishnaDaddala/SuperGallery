@@ -60,7 +60,7 @@
 .login .card { position: relative; z-index: 1; width: min(400px, calc(100vw - 32px)); padding: 40px 36px 28px; border-radius: 28px; border: 1px solid var(--line2);
   background: color-mix(in srgb, var(--panel) 74%, transparent); -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
   box-shadow: 0 1px 0 #ffffff40 inset, 0 30px 80px #0000001f; animation: login-rise .6s cubic-bezier(.2, .8, .2, 1) both; }
-.login .brand .logo { background: linear-gradient(140deg, #3d8bff, #7a5cff); box-shadow: 0 10px 26px #3d6bff4d; color: #fff; }
+.login .brand .logo { border-radius: 22.5%; box-shadow: 0 10px 26px #1675ea4d; }
 .login .brand span { display: block; font-size: 26px; letter-spacing: -.035em; }
 .login-welcome { font-size: 15px; }
 .login .input { background: color-mix(in srgb, var(--panel2) 80%, transparent); }

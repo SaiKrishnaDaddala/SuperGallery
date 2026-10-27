@@ -33,3 +33,7 @@ Before submitting, run relevant tests and explain the behavior change and valida
 Keep changes focused. Never include `.env`, real media, databases, keys, tokens, local NAS addresses or private diagnostics. Add documentation for behavior/configuration changes and update the changelog. Contributions are licensed under the repository's MIT license; preserve third-party attribution.
 
 Be respectful, specific and constructive in discussions. Report security issues privately as described in [SECURITY.md](SECURITY.md).
+
+## License of contributions
+
+SuperGallery is licensed under Apache-2.0 by Sai Krishna Daddala. Contributions you submit are accepted under the same license (Apache-2.0, section 5). Keep the `LICENSE` and `NOTICE` files and existing copyright notices intact.

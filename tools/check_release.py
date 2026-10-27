@@ -31,7 +31,7 @@ def main():
         content = path.read_bytes()
         if any(re.search(pattern, content) for pattern in PATTERNS):
             errors.append(name + ': possible credential (value withheld)')
-    for required in ('README.md', 'LICENSE', 'SECURITY.md', 'compose.yaml', '.env.example', 'docs/INSTALL.md', 'docs/UPGRADING.md'):
+    for required in ('README.md', 'LICENSE', 'NOTICE', 'SECURITY.md', 'compose.yaml', '.env.example', 'docs/INSTALL.md', 'docs/UPGRADING.md'):
         if required not in files:
             errors.append('Missing required release file: ' + required)
     if errors:

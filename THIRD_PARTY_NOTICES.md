@@ -1,6 +1,6 @@
 # Third-party notices
 
-The application source is MIT licensed. That license does not replace the licenses of models, dependencies, icons or operating-system packages.
+The application source is licensed under Apache-2.0 (Copyright 2026 Sai Krishna Daddala; see LICENSE and NOTICE). That license does not replace the licenses of models, dependencies, icons or operating-system packages.
 
 | Component | Source and license | Included material |
 | --- | --- | --- |
