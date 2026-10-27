@@ -7,6 +7,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -27,12 +30,8 @@ jobs:
       - run: find web/js -name '*.js' -exec node --check {} \;
       - run: python tools/check_release.py
       - run: pip-audit -r requirements.txt
-      - run: pip inspect > dependency-inventory.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: python-dependency-inventory
-          path: dependency-inventory.json
-          retention-days: 30
+      - name: Record resolved dependencies in the CI log
+        run: pip freeze --all
   container:
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -52,6 +51,7 @@ jobs:
           docker exec sg-smoke python tools/download_models.py --verify-only
           docker cp tools/container_smoke.py sg-smoke:/tmp/container_smoke.py
           docker exec sg-smoke python /tmp/container_smoke.py
+          docker exec sg-smoke pip freeze --all
       - name: Container logs on failure
         if: failure()
         run: docker logs --tail=100 sg-smoke || true
