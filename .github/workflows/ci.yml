@@ -1,0 +1,77 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CONFIG_DIR: .test-config
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: find web/js -name '*.js' -exec node --check {} \;
+      - run: python tools/check_release.py
+      - run: pip-audit -r requirements.txt
+      - run: pip inspect > dependency-inventory.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-dependency-inventory
+          path: dependency-inventory.json
+          retention-days: 30
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Build fresh image and verify models
+        run: docker build --pull -t supergallery:ci .
+      - name: Check first-run configuration
+        run: |
+          mkdir -p /tmp/sg-ci-library /tmp/sg-ci-config
+          NAS_HOST=localhost LIBRARY_PATH=/tmp/sg-ci-library CONFIG_PATH=/tmp/sg-ci-config docker compose config --quiet
+          docker run -d --name sg-smoke --cap-drop ALL --security-opt no-new-privileges:true supergallery:ci
+          for attempt in $(seq 1 40); do
+            if docker exec sg-smoke python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8800/api/auth')"; then break; fi
+            sleep 2
+          done
+          docker exec sg-smoke python tools/download_models.py --verify-only
+          docker cp tools/container_smoke.py sg-smoke:/tmp/container_smoke.py
+          docker exec sg-smoke python /tmp/container_smoke.py
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs --tail=100 sg-smoke || true
+      - name: Cleanup disposable container
+        if: always()
+        run: docker rm -f sg-smoke || true
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, container]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Build committed source archive
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python tools/release_archive.py "$RELEASE_TAG"
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" dist/* --verify-tag --title "SuperGallery $RELEASE_TAG" --notes-file docs/RELEASE_NOTES.md

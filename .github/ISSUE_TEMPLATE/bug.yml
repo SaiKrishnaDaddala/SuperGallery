@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible problem using redacted or synthetic examples.
+title: '[Bug] '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 'Do not include passwords, OTPs, private media, .env, databases, device identifiers or unredacted logs. Security issues must be reported privately via Security → Report a vulnerability.'
+  - type: input
+    id: version
+    attributes:
+      label: SuperGallery version
+      placeholder: 2.4.0
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: NAS/host architecture, OS, Docker version and browser. Omit serial numbers and addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include expected and actual behavior; use synthetic filenames or sample media.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant redacted error
+      description: Paste only the smallest useful excerpt. Check it for private information first.
+      render: text

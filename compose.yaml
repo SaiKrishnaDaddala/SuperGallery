@@ -1,0 +1,31 @@
+name: supergallery
+services:
+  supergallery:
+    build: .
+    image: supergallery:2.4.0
+    restart: unless-stopped
+    ports:
+      - "${HTTPS_PORT:-8843}:8843"
+    environment:
+      CONFIG_DIR: /config
+      SCAN_ROOTS: /nas/Library
+      USERS_ROOT: ""
+      ALLOWED_HOSTS: "${NAS_HOST:?Set NAS_HOST in .env},localhost,127.0.0.1"
+      TLS_HOSTS: "${NAS_HOST:?Set NAS_HOST in .env},localhost,127.0.0.1"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      AWS_EC2_METADATA_DISABLED: "true"
+      HASH_WORKERS: "2"
+      ANALYZE_WORKERS: "2"
+    volumes:
+      - "${CONFIG_PATH:?Set CONFIG_PATH in .env}:/config"
+      - "${LIBRARY_PATH:?Set LIBRARY_PATH in .env}:/nas/Library:${LIBRARY_MODE:-ro}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
