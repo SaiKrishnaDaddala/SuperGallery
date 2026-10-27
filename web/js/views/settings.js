@@ -47,13 +47,13 @@ export function settingsView(root) {
         <div>Volumes</div><div>${s.roots.map((r) => `<div class="mono">${esc(r)}</div>`).join('')}</div></div>
         <button class="btn sm logout" style="margin-top:14px">${icon('logout')}Sign out</button></div>
       <div class="card"><h3>${icon('info')}About your library</h3><div class="col" style="gap:8px;font-size:13.5px">
-        <div>• <b>Scanning</b> walks every folder once and stores names, sizes and dates in a local database, so analytics on millions of files are instant.</div>
+        <div>• <b>Scanning</b> stores names, sizes and dates in a local database so browsing and analytics do not need to reread every file. Performance depends on your library and NAS.</div>
         <div>• <b>Duplicates</b>: only files with the same size are read; a quick hash of start/middle/end narrows candidates, then a full BLAKE2 hash confirms exact copies.</div>
         <div>• <b>Similar photos</b>: each photo gets a 128-bit perceptual fingerprint; photos whose fingerprints are close (and share an aspect ratio) are grouped.</div>
-        <div>• <b>Deleting</b> moves files to <span class="mono">.supergallery_trash</span> on the same volume — instant and undoable.</div>
+        <div>• <b>Deleting</b> moves files to <span class="mono">.supergallery_trash</span> for recovery until its retention period expires. Keep an independent backup of originals.</div>
         <div>• Change settings with environment variables in <span class="mono">docker-compose.yml</span> (see README).</div></div></div>
       <div class="card span2"><h3>${icon('download')}Open SuperGallery as an app<span class="right">${embedded ? '<span class="badge ok">Embedded window</span>' : standalone ? '<span class="badge ok">App window</span>' : '<span class="badge">Browser</span>'}</span></h3>
-        <div class="muted" style="margin:-6px 0 14px">SuperGallery can open inside the UGOS desktop when installed with its UGOS app package. Custom packages require UGREEN developer authorization. A browser shortcut alone opens a separate tab. You can also add SuperGallery to your computer or phone below.</div>
+        <div class="muted" style="margin:-6px 0 14px">This release runs as a web app. Native UGREEN package distribution requires vendor authorization and is not included in the public release. You can add the web app to your computer or phone below.</div>
         <div class="grid g3" style="gap:14px">
           <div class="insight" style="align-items:flex-start"><div class="ic">${icon('monitor')}</div><div><div class="t">Windows / Mac (Chrome or Edge)</div>
             <div class="d">Open <b>${esc(location.origin)}</b> → browser menu <b>⋮</b> → <b>Cast, save and share</b> → <b>Install page as app…</b> (Edge: <b>Apps → Install this site as an app</b>). If you only see <b>Create shortcut</b>, tick <b>Open as window</b>. It then lives in your Start menu and taskbar.</div></div></div>
