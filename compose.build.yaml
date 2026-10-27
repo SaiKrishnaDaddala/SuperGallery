@@ -1,0 +1,7 @@
+# Build the image from this source checkout instead of pulling it:
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+services:
+  supergallery:
+    build: .
+    image: supergallery:local
+    pull_policy: build

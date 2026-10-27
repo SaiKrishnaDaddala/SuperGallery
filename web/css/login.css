@@ -1,0 +1,80 @@
+/* Sign-in screen: a frosted card over a live "library sorting itself" backdrop. */
+:root { --scene-dot: #3c3c4314; --scene-glow: .42; --paper: #fff; --scene-shadow: 0 10px 26px #1d1d1f1f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --scene-dot: #ffffff10; --scene-glow: .26; --paper: #e9e9ee; --scene-shadow: 0 10px 30px #0000006b; } }
+:root[data-theme="dark"] { --scene-dot: #ffffff10; --scene-glow: .26; --paper: #e9e9ee; --scene-shadow: 0 10px 30px #0000006b; }
+
+.login { position: relative; height: 100vh; height: 100dvh; overflow: hidden; isolation: isolate; }
+.login-scene { --floor: 94vh; --stage: 210px; --mouth: 96px; --sink: 64px; position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.login-glow { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: var(--scene-glow); animation: login-drift 22s ease-in-out infinite alternate; }
+.login-glow.g1 { left: -12vmax; top: -16vmax; background: #3d8bff; }
+.login-glow.g2 { right: -14vmax; top: 8vh; background: #a35cff; animation-delay: -7s; }
+.login-glow.g3 { left: 24vw; bottom: -26vmax; background: #ff5c8a; animation-delay: -14s; opacity: calc(var(--scene-glow) * .7); }
+.login-grid { position: absolute; inset: 0; background: radial-gradient(var(--scene-dot) 1.2px, transparent 1.3px) 0 0 / 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 45%, transparent 18%, #000 70%); mask-image: radial-gradient(ellipse at 50% 45%, transparent 18%, #000 70%); }
+@keyframes login-drift { to { transform: translate(6vw, 5vh) scale(1.12); } }
+
+/* Folders sit along the bottom edge; cards fly between the back and front panels. */
+.sort-folder { --fw: 116px; --fh: 86px; position: absolute; bottom: calc(100vh - var(--floor)); left: calc(var(--fx) * 1vw - var(--fw) / 2); width: var(--fw); height: calc(var(--fh) + 24px); }
+.sort-folder.photo { --tone: #0a84ff; --tone2: #5ab0ff; }
+.sort-folder.video { --tone: #ff2d55; --tone2: #ff7b97; }
+.sort-folder.shot { --tone: #5e5ce6; --tone2: #9d9bff; }
+.sort-folder.doc { --tone: #22b455; --tone2: #6ad98e; }
+.sort-folder-back { position: absolute; left: 0; right: 0; top: 0; height: var(--fh); z-index: 1; border-radius: 10px 14px 14px 14px; background: var(--tone); box-shadow: var(--scene-shadow); }
+.sort-folder-back::before { content: ''; position: absolute; left: 0; top: -9px; width: 44%; height: 16px; border-radius: 9px 12px 0 0; background: var(--tone); }
+.sort-folder-front { position: absolute; left: 0; right: 0; top: 18px; height: calc(var(--fh) - 18px); z-index: 3; display: grid; place-items: center; border-radius: 12px; color: #fff;
+  background: linear-gradient(180deg, var(--tone2), var(--tone)); box-shadow: inset 0 1px 0 #ffffff59, 0 -2px 10px #00000014;
+  transform-origin: 50% 100%; animation: folder-gulp 3s ease-in-out infinite; animation-delay: calc(var(--i) * -.75s); }
+.sort-folder-front svg { width: 30px; height: 30px; opacity: .95; }
+.sort-folder > span { position: absolute; left: -20px; right: -20px; bottom: 0; text-align: center; font-size: 12px; font-weight: 600; letter-spacing: -.01em; color: var(--muted); }
+@keyframes folder-gulp { 0%, 62%, 100% { transform: perspective(320px) rotateX(0); } 74% { transform: perspective(320px) rotateX(-24deg); } 86% { transform: perspective(320px) rotateX(-6deg); } }
+
+/* Cards: scattered → lined up above their folder → dropped in. Positions arrive as unitless vw/vh numbers. */
+.sort-card { --s: 1; --w: 64px; --h: 48px; position: absolute; left: 0; top: 0; z-index: 2; width: var(--w); height: var(--h); margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
+  border-radius: 9px; box-shadow: var(--scene-shadow); overflow: hidden; will-change: transform, opacity;
+  transform: translate(calc(var(--fx) * 1vw + (var(--slot) - 1.5) * 18px), calc(var(--floor) - var(--stage))) rotate(calc((var(--slot) - 1.5) * 5deg)) scale(calc(.9 * var(--s)));
+  animation: sort-flow var(--cycle) cubic-bezier(.45, .05, .25, 1) infinite; animation-delay: var(--delay); }
+@keyframes sort-flow {
+  0% { opacity: 0; transform: translate(calc(var(--x0) * 1vw), calc(var(--y0) * 1vh)) rotate(var(--r0)) scale(calc(.8 * var(--s))); }
+  9% { opacity: 1; transform: translate(calc(var(--x0) * 1vw), calc(var(--y0) * 1vh)) rotate(var(--r0)) scale(calc(1 * var(--s))); }
+  36% { opacity: 1; transform: translate(calc(var(--x0) * 1vw + 16px), calc(var(--y0) * 1vh - 12px)) rotate(calc(var(--r0) * -.4)) scale(calc(1 * var(--s))); }
+  60% { opacity: 1; transform: translate(calc(var(--fx) * 1vw + (var(--slot) - 1.5) * 18px), calc(var(--floor) - var(--stage))) rotate(calc((var(--slot) - 1.5) * 5deg)) scale(calc(.9 * var(--s))); }
+  70% { opacity: 1; transform: translate(calc(var(--fx) * 1vw + (var(--slot) - 1.5) * 18px), calc(var(--floor) - var(--stage) - 4px)) rotate(calc((var(--slot) - 1.5) * 5deg)) scale(calc(.9 * var(--s))); }
+  84% { opacity: 1; transform: translate(calc(var(--fx) * 1vw), calc(var(--floor) - var(--mouth))) rotate(0deg) scale(calc(.55 * var(--s))); }
+  92%, 100% { opacity: 0; transform: translate(calc(var(--fx) * 1vw), calc(var(--floor) - var(--sink))) rotate(0deg) scale(calc(.4 * var(--s))); }
+}
+.sort-card i { position: absolute; inset: 0; }
+.sort-card.photo { border: 3px solid var(--paper); background: linear-gradient(180deg, #7cc4ff, #c9e6ff 70%); }
+.sort-card.photo i::before { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, #3fae6a, #1f7a48); clip-path: polygon(0 100%, 0 72%, 28% 42%, 48% 66%, 66% 48%, 100% 80%, 100% 100%); }
+.sort-card.photo i::after { content: ''; position: absolute; right: 18%; top: 16%; width: 9px; height: 9px; border-radius: 50%; background: #ffd23f; }
+.sort-card.video { --w: 70px; --h: 44px; background: linear-gradient(135deg, #2b2d42, #ff2d55); }
+.sort-card.video i::before { content: ''; position: absolute; left: 50%; top: 50%; width: 16px; height: 18px; margin: -9px 0 0 -6px; background: #fff; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.sort-card.video i::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: 6px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, #fff 40%, #ffffff55 40%); }
+.sort-card.shot { --w: 34px; --h: 60px; border-radius: 8px; border: 2px solid #1d1d1f; background: linear-gradient(180deg, #8f8dff, #5e5ce6); }
+.sort-card.shot i::before { content: ''; position: absolute; left: 50%; top: 3px; width: 12px; height: 3px; margin-left: -6px; border-radius: 2px; background: #1d1d1f; }
+.sort-card.shot i::after { content: ''; position: absolute; left: 5px; right: 5px; top: 14px; height: 26px; border-radius: 4px; background: repeating-linear-gradient(180deg, #ffffffb3 0 4px, transparent 4px 8px); }
+.sort-card.doc { --w: 46px; --h: 58px; border-radius: 6px 14px 6px 6px; background: var(--paper); }
+.sort-card.doc i { inset: 14px 8px 8px; background: repeating-linear-gradient(180deg, #22b45566 0 3px, transparent 3px 8px); }
+.sort-card.doc::after { content: ''; position: absolute; right: 0; top: 0; width: 13px; height: 13px; background: linear-gradient(225deg, transparent 50%, #22b45540 50%); }
+
+/* Frosted card in front of the scene. */
+.login .card { position: relative; z-index: 1; width: min(400px, calc(100vw - 32px)); padding: 40px 36px 28px; border-radius: 28px; border: 1px solid var(--line2);
+  background: color-mix(in srgb, var(--panel) 74%, transparent); -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
+  box-shadow: 0 1px 0 #ffffff40 inset, 0 30px 80px #0000001f; animation: login-rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+.login .brand .logo { background: linear-gradient(140deg, #3d8bff, #7a5cff); box-shadow: 0 10px 26px #3d6bff4d; color: #fff; }
+.login .brand span { display: block; font-size: 26px; letter-spacing: -.035em; }
+.login-welcome { font-size: 15px; }
+.login .input { background: color-mix(in srgb, var(--panel2) 80%, transparent); }
+.login-foot { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 22px 0 0; font-size: 12px; color: var(--faint); }
+.login-foot svg { width: 13px; height: 13px; }
+@keyframes login-rise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+
+@media (max-width: 640px) {
+  .login-scene { --floor: 96vh; --stage: 128px; --mouth: 68px; --sink: 46px; }
+  .sort-folder { --fw: 76px; --fh: 58px; }
+  .sort-folder-front svg { width: 22px; height: 22px; }
+  .sort-folder > span { font-size: 11px; }
+  .sort-card { --s: .72; }
+  .sort-card:nth-of-type(n+9) { display: none; }
+  .login .card { padding: 32px 24px 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .login-glow, .sort-folder-front, .login .card { animation: none; } .sort-card { animation: none; opacity: .9; } }

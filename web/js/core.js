@@ -151,7 +151,7 @@ export const rawUrl = (it, dl = false) => (it.id ? `/api/raw?id=${it.id}` : `/ap
 export function fileIcon(it, big = false) {
   if (it.dir || it.cat === 'folder') return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${CAT_COLORS.folder}">${icon(it.cat === 'volume' ? 'hdd' : 'folder')}</div>`;
   const c = extColor(it.ext, it.cat);
-  if (!big && THUMBABLE.has(it.ext) && it.cat === 'image') return `<div class="ficon" style="background:${c}"><img loading="lazy" src="${thumbUrl(it)}" onerror="this.remove()"></div>`;
+  if (!big && THUMBABLE.has(it.ext) && it.cat === 'image') return `<div class="ficon" style="background:${c}"><img loading="lazy" src="${thumbUrl(it)}" data-fallback="remove"></div>`;
   const label = it.ext ? it.ext.slice(0, 4) : '';
   return `<div class="${big ? 'big-ic' : 'ficon'}" style="background:${c}">${big || !label ? icon(CAT_ICON[it.cat] || 'file') : esc(label)}</div>`;
 }

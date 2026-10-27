@@ -300,7 +300,7 @@ class Pane {
   }
 
   tileHtml(e, i, r, c, g) {
-    const thumb = !e.dir && THUMBABLE.has(e.ext) ? `<img loading="lazy" src="${thumbUrl(e, 256)}" onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.f))" data-f='${esc(fileIcon(e, true))}'>` : fileIcon(e, true);
+    const thumb = !e.dir && THUMBABLE.has(e.ext) ? `<img loading="lazy" src="${thumbUrl(e, 256)}" data-fallback="icon" data-f='${esc(fileIcon(e, true))}'>` : fileIcon(e, true);
     return `<div class="tile" data-i="${i}" draggable="true" style="top:${g.top + r * g.rh}px;left:${8 + c * (g.tw + 10)}px;width:${g.tw}px;height:${g.rh - 10}px">
       <div class="ck">${icon('check')}</div><div class="th">${thumb}</div>
       <div class="nm" title="${esc(e.name)}">${esc(e.name)}</div>
@@ -718,7 +718,7 @@ export function filesView(root, params) {
       }
       if (it.dir) return folderInsight(pv, it, pane);
       let media = '';
-      if (it.cat === 'image' && THUMBABLE.has(it.ext)) media = `<div class="pv-media"><img src="${thumbUrl(it, 512)}" onerror="this.remove()"></div>`;
+      if (it.cat === 'image' && THUMBABLE.has(it.ext)) media = `<div class="pv-media"><img src="${thumbUrl(it, 512)}" data-fallback="remove"></div>`;
       else if (it.cat === 'video') media = `<div class="pv-media"><video src="${rawUrl(it)}" poster="${THUMBABLE.has(it.ext) ? thumbUrl(it, 512) : ''}" controls preload="none"></video></div>`;
       else if (it.cat === 'audio') media = `<div style="padding:16px"><audio src="${rawUrl(it)}" controls style="width:100%"></audio></div>`;
       else if (it.ext === 'pdf') media = `<iframe src="${rawUrl(it)}" style="width:100%;height:420px;border:0;background:#fff"></iframe>`;

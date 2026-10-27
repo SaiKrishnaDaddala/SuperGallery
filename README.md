@@ -39,15 +39,19 @@ Celebrity lookup is optional, disabled by default and requires a separately conf
 
 ## Quick start
 
-Use a Linux x86-64 Docker host with Docker Compose v2. Start with a small library and read-only access. First builds download dependencies and approximately 193 MB of pinned model weights; allow additional space for the image, index, thumbnails and backups. CPU indexing may take substantial time on a large library. ARM and GPU configurations are not validated in this release.
+Use a Linux Docker host with Docker Compose v2 (x86-64 is the tested platform; an arm64 image is also published). Start with a small library and read-only access. The image already contains the pinned, checksum-verified models; allow additional space for the index, thumbnails and backups. CPU indexing may take substantial time on a large library. GPU configurations are not validated.
+
+Ready-built images are published to the GitHub Container Registry by CI after every tested change: `ghcr.io/saikrishnadaddala/supergallery:latest`, plus release tags such as `:2.4.0`. You only need `compose.yaml` and `.env`:
 
 ```sh
-git clone --branch v2.4.0 https://github.com/SaiKrishnaDaddala/SuperGallery.git
-cd SuperGallery
-cp .env.example .env
+mkdir supergallery && cd supergallery
+curl -fsSLO https://raw.githubusercontent.com/SaiKrishnaDaddala/SuperGallery/main/compose.yaml
+curl -fsSL https://raw.githubusercontent.com/SaiKrishnaDaddala/SuperGallery/main/.env.example -o .env
 # Edit .env: NAS_HOST, LIBRARY_PATH and CONFIG_PATH must match your machine.
-docker compose up -d --build
+docker compose up -d
 ```
+
+To update to the newest version later, run `docker compose pull && docker compose up -d`. To build from source instead, clone the repository and run `docker compose -f compose.yaml -f compose.build.yaml up -d --build`.
 
 Open `https://YOUR_NAS_HOST:8843`, verify the NAS certificate, create your own password, and enable two-step verification in Settings. Scan your selected library, then start the indexes you want. There are no default credentials. The [installation guide](docs/INSTALL.md) includes UGREEN Docker steps, certificate handling and writable-library setup.
 
@@ -59,7 +63,7 @@ The shared application login grants access to all mounted library content. Folde
 
 ## Updates and contributions
 
-Releases use versioned Git tags, source archives and SHA-256 checksums. Updates are explicit: back up, review release notes, check out the desired tag and rebuild. There is no silent self-updater. [Upgrade and rollback instructions](docs/UPGRADING.md).
+Releases use versioned Git tags, source archives with SHA-256 checksums, and container images with signed build provenance (`gh attestation verify oci://ghcr.io/saikrishnadaddala/supergallery:latest --owner SaiKrishnaDaddala`). Updates are explicit: back up, review release notes, then pull. The app never updates itself. [Upgrade and rollback instructions](docs/UPGRADING.md).
 
 Use [Issues](https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new/choose) for bugs and feature requests. Never attach personal media, passwords, `.env`, database files, authenticator secrets or unredacted logs. Security reports belong in [private vulnerability reporting](https://github.com/SaiKrishnaDaddala/SuperGallery/security/advisories/new), not public issues.
 

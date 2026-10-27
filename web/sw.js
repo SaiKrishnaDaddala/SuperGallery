@@ -1,6 +1,6 @@
 // Never cache NAS files or authenticated API responses. Offline navigation gets
 // an honest reconnect screen rather than an incomplete, stale application shell.
-const SHELL = 'sg-shell-v2';
+const SHELL = 'sg-shell-v3';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/static/offline.html'])).catch(() => {}));

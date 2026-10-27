@@ -2,7 +2,7 @@ SuperGallery 2.4.0 is the first public source release: a NAS-hosted gallery with
 
 This release adds nine optional-feature switches and explicit remote HTTPS access settings, including compatibility with UGREEN gateways. Remote access requires authenticator verification. The default installation publishes HTTPS only and mounts the selected library read-only.
 
-Download the source ZIP and check it against `SHA256SUMS`, or clone tag `v2.4.0`. Follow `docs/INSTALL.md`; the Docker build downloads and verifies pinned models. No credentials, user media, databases or deployment-specific configuration are included. No prebuilt container or native UGREEN package is provided in this release.
+Install with the published image `ghcr.io/saikrishnadaddala/supergallery:2.4.0` (or `:latest`) using `compose.yaml` and `.env.example`; see `docs/INSTALL.md`. The source ZIP with `SHA256SUMS` is attached for building from source. No credentials, user media, databases or deployment-specific configuration are included. No native UGREEN package is provided.
 
 Existing installations: back up originals and private configuration before rebuilding. Read `docs/UPGRADING.md` for migration and rollback steps. The app does not update itself automatically.
 

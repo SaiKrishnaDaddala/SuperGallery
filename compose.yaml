@@ -1,8 +1,10 @@
 name: supergallery
 services:
   supergallery:
-    build: .
-    image: supergallery:2.4.0
+    # Published by CI after tests pass. `docker compose pull` always fetches the newest build.
+    # Pin a release instead with SUPERGALLERY_TAG=2.4.0 in .env.
+    image: ghcr.io/saikrishnadaddala/supergallery:${SUPERGALLERY_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     ports:
       - "${HTTPS_PORT:-8843}:8843"

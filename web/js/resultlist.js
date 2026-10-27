@@ -76,7 +76,7 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
           <div class="muted ellipsis mono row" style="gap:6px" title="${esc(it.dir)}">${it.owner && (!state.scope || state.scope.length > 1) ? avatar(it.owner) : ''}<span class="ellipsis">${esc(shortPath(it.dir))}</span></div>
           <div class="num" style="text-align:right">${bytes(it.size)}</div><div class="muted num">${date(it.ts)}</div></div>`);
       } else {
-        const th = THUMBABLE.has(it.ext) ? `<img loading="lazy" src="${thumbUrl(it)}" onerror="this.style.display='none'">` : fileIcon(it, true);
+        const th = THUMBABLE.has(it.ext) ? `<img loading="lazy" src="${thumbUrl(it)}" data-fallback="collapse">` : fileIcon(it, true);
         html.push(`<div class="tile${s}" data-i="${i}" style="top:${g.top + r * g.rh}px;left:${8 + c * (g.tw + 8)}px;width:${g.tw}px;height:${g.rh - 8}px">
           <div class="ck">${icon('check')}</div><div class="th">${th}${it.duration ? `<span class="vid" style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.5);color:#fff;border-radius:7px;padding:1px 6px;font-size:11px">${dur(it.duration)}</span>` : ''}</div><div class="nm">${esc(it.name)}</div><div class="meta">${bytes(it.size)}${it.width && it.cat === 'video' ? ` · ${it.height >= 2000 || it.width >= 3800 ? '4K' : it.height >= 1000 || it.width >= 1900 ? 'HD' : 'SD'}` : ''}</div></div>`);
       }

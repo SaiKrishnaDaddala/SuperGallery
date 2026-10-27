@@ -24,6 +24,19 @@ import { organizeView } from './views/organize.js';
 import { settingsView } from './views/settings.js';
 import { applyFeatureVisibility, filteredNav, routeEnabled } from './features.js';
 
+// Broken thumbnails fall back without inline handlers, so the page can run under a strict CSP.
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement)) return;
+  const fallback = img.dataset.fallback;
+  if (fallback === 'remove') img.remove();
+  else if (fallback === 'hide') img.style.visibility = 'hidden';
+  else if (fallback === 'collapse') img.style.display = 'none';
+  else if (fallback === 'icon') img.replaceWith(document.createRange().createContextualFragment(img.dataset.f || ''));
+}, true);
+
+if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
 const ROUTES = {
   dashboard: dashboardView, analytics: analyticsView, files: filesView, gallery: galleryView, search: searchView, large: searchView,
   duplicates: duplicatesView, similar: similarView, categories: categoriesView, users: usersView, people: peopleView,
@@ -259,15 +272,33 @@ function route() {
   try { teardown = ROUTES[key](main, params, parts.slice(1)) || null; } catch (e) { console.error(e); fail(e); }
 }
 
+// Login backdrop: loose photos, clips, screenshots and documents line up and drop into their folders.
+const SORT_FOLDERS = [
+  { kind: 'photo', label: 'Photos', icon: 'image', x: 12 },
+  { kind: 'video', label: 'Videos', icon: 'film', x: 37 },
+  { kind: 'shot', label: 'Screenshots', icon: 'monitor', x: 63 },
+  { kind: 'doc', label: 'Documents', icon: 'fileText', x: 88 },
+];
+const SORT_CARDS = [[6, 12, -14], [71, 9, 11], [28, 30, 8], [86, 34, -9], [47, 8, -6], [14, 44, 13], [62, 26, -12], [93, 15, 7],
+  [36, 47, -10], [79, 50, 12], [4, 28, 9], [55, 40, -13], [22, 6, 6], [68, 44, 10], [41, 22, -8], [90, 52, -5]];
+function loginScene() {
+  const cycle = 12, folders = SORT_FOLDERS.map((f, i) => `<div class="sort-folder ${f.kind}" style="--fx:${f.x};--i:${i}"><div class="sort-folder-back"></div><div class="sort-folder-front">${icon(f.icon)}</div><span>${f.label}</span></div>`).join('');
+  const cards = SORT_CARDS.map(([x, y, r], i) => {
+    const f = SORT_FOLDERS[i % 4], slot = Math.floor(i / 4);
+    return `<div class="sort-card ${f.kind}" style="--x0:${x};--y0:${y};--r0:${r}deg;--fx:${f.x};--slot:${slot};--delay:${(-i * cycle / SORT_CARDS.length).toFixed(2)}s;--cycle:${cycle}s"><i></i></div>`;
+  }).join('');
+  return `<div class="login-scene" aria-hidden="true"><div class="login-glow g1"></div><div class="login-glow g2"></div><div class="login-glow g3"></div><div class="login-grid"></div>${cards}${folders}</div>`;
+}
+
 async function login(setup = false) {
   stopPolling();
   teardown?.(); teardown = null; shellCleanup();
   window.onhashchange=null;
-  document.body.innerHTML = `<div class="login"><div class="card"><div class="brand" style="padding:0"><div class="logo">${icon('layers')}</div><span>SuperGallery</span></div>
+  document.body.innerHTML = `<div class="login">${loginScene()}<div class="card"><div class="brand" style="padding:0"><div class="logo">${icon('layers')}</div><span>SuperGallery</span></div>
     ${setup ? '<p class="muted" style="margin-top:0">Welcome! Create the password that protects this app. It can delete files, so pick a strong one.</p>' : ''}
     <p class="login-welcome">Your memories. Beautifully in order.</p><form class="col"><input class="input p1" type="password" aria-label="Password" autocomplete="${setup ? 'new-password' : 'current-password'}" placeholder="${setup ? 'New password (12+ characters)' : 'Password'}" autofocus>
     ${setup ? '<input class="input p2" type="password" placeholder="Repeat password">' : ''}
-    <button class="btn primary">${setup ? 'Create password' : 'Sign in'}</button><div class="err danger-text" role="alert"></div></form></div></div>`;
+    <button class="btn primary">${setup ? 'Create password' : 'Sign in'}</button><div class="err danger-text" role="alert"></div></form><p class="login-foot">${icon('lock')}Private to your NAS. Nothing leaves your network.</p></div></div>`;
   $('form').onsubmit = async (e) => {
     e.preventDefault();
     const pw = $('.p1').value;
@@ -288,7 +319,7 @@ function loginCode() {
 
 async function boot() {
   const a = await api('/auth');
-  if(a.https_required){teardown?.();shellCleanup();document.body.innerHTML=`<div class="login"><div class="card"><h1>Secure sign-in</h1><p>Two-step verification is enabled. Continue using the encrypted connection to your NAS.</p><a class="btn primary" href="${esc(a.secure_url.replace('#/settings',location.hash||'#/dashboard'))}">Open secure SuperGallery</a></div></div>`;return;}
+  if(a.https_required){teardown?.();shellCleanup();document.body.innerHTML=`<div class="login">${loginScene()}<div class="card"><h1>Secure sign-in</h1><p>Two-step verification is enabled. Continue using the encrypted connection to your NAS.</p><a class="btn primary" href="${esc(a.secure_url.replace('#/settings',location.hash||'#/dashboard'))}">Open secure SuperGallery</a></div></div>`;return;}
   if (!a.ok) return login(a.setup);
   try { state.prefs = { bookmarks: [], ...(await api('/prefs')) }; } catch { /* first run */ }
   state.features = (await api('/features')).values;
@@ -314,7 +345,7 @@ window.addEventListener('offline',()=>{if(!document.querySelector('.connection-n
 window.addEventListener('online',()=>document.querySelector('.connection-notice')?.remove());
 on('changed', (e) => { if (e.detail?.kind === 'index') { emit('indexed'); loadUsers(); } });
 boot().catch(error => {
-  if (!document.body.querySelector('.login,#app')) document.body.innerHTML = `<div class="login"><div class="card"><h1>Connect to your NAS</h1><p>${esc(error.message)}</p><button class="btn primary retry-connect">Try again</button></div></div>`;
+  if (!document.body.querySelector('.login,#app')) document.body.innerHTML = `<div class="login">${loginScene()}<div class="card"><h1>Connect to your NAS</h1><p>${esc(error.message)}</p><button class="btn primary retry-connect">Try again</button></div></div>`;
   document.querySelector('.retry-connect')?.addEventListener('click',()=>location.reload());
   if(location.protocol==='http:') secureConnection();
 });

@@ -65,7 +65,7 @@ export function duplicatesView(root, params) {
 
   function groupEl(g) {
     const f0 = g.files[0];
-    const thumb = THUMBABLE.has(f0.ext) ? `<img class="group-thumb" loading="lazy" src="${thumbUrl(f0)}" onerror="this.style.visibility='hidden'">` : `<div class="group-thumb" style="display:grid;place-items:center">${icon('file')}</div>`;
+    const thumb = THUMBABLE.has(f0.ext) ? `<img class="group-thumb" loading="lazy" src="${thumbUrl(f0)}" data-fallback="hide">` : `<div class="group-thumb" style="display:grid;place-items:center">${icon('file')}</div>`;
     const el2 = h(`<div class="group"><div class="group-head">${thumb}<div class="grow" style="min-width:0"><div class="ellipsis" style="font-weight:600">${esc(f0.name)}</div>
       <div class="muted" style="font-size:12.5px">${num(g.count)} copies × ${bytes(g.size)} · <span class="danger-text">${bytes(g.wasted)} wasted</span></div></div>
       ${g.owner ? ownerChip(g.owner) : ''}

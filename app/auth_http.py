@@ -13,6 +13,12 @@ from .security import CHALLENGE_COOKIE, CHALLENGE_TTL, COOKIE, SESSION_TTL, Secu
 security = Security(CONFIG_DIR, APP_PASSWORD)
 
 
+# Scripts only from this origin; inline styles stay allowed because views set style attributes.
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+       "media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; worker-src 'self'; "
+       "manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; ")
+
+
 def private_transport(request):
     if request.url.scheme == "https":
         return True
@@ -93,14 +99,14 @@ def install(app):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        if path == "/":
+        if path in ("/", "/static/offline.html"):
             ancestors = ["'self'"]
             for origin in os.getenv('FRAME_ANCESTORS', '').split(','):
                 origin = origin.strip()
                 parsed = urlsplit(origin)
                 if parsed.scheme in ('http', 'https') and parsed.netloc and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and parsed.path in ('', '/') and not any(c.isspace() for c in origin):
                     ancestors.append(f'{parsed.scheme}://{parsed.netloc}')
-            response.headers["Content-Security-Policy"] = 'frame-ancestors ' + ' '.join(ancestors)
+            response.headers["Content-Security-Policy"] = CSP + 'frame-ancestors ' + ' '.join(ancestors)
         if path.startswith("/api/") or path == "/":
             response.headers["Cache-Control"] = "no-store"
         elif path.startswith("/static/"):

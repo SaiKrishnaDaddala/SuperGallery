@@ -31,7 +31,7 @@ export function categoriesView(root, params, sub) {
     box.innerHTML = '';
     for (const c of r.categories) {
       const [a, b] = TINT[c.key] || TINT.other;
-      const tiles = c.sample.slice(0, 6).map((id) => `<img loading="lazy" src="/api/thumb?id=${id}&s=256" onerror="this.style.visibility='hidden'">`);
+      const tiles = c.sample.slice(0, 6).map((id) => `<img loading="lazy" src="/api/thumb?id=${id}&s=256" data-fallback="hide">`);
       while (tiles.length < 6) tiles.push(`<div class="ph" style="background:linear-gradient(145deg,${a}22,${b}33)"></div>`);
       const card = h(`<a class="card cat-card" href="#/categories/${c.key}" style="color:inherit">
         <div class="mosaic">${tiles.join('')}</div>
