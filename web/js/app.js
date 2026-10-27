@@ -309,11 +309,11 @@ async function login(setup = false) {
   stopPolling();
   teardown?.(); teardown = null; shellCleanup();
   window.onhashchange=null;
-  document.body.innerHTML = `<div class="login">${loginScene()}<div class="card"><div class="brand" style="padding:0"><div class="logo"><img src="/static/icons/icon.svg" alt=""></div><span>SuperGallery</span></div>
+  document.body.innerHTML = `<main class="login">${loginScene()}<div class="card"><div class="brand" style="padding:0"><div class="logo"><img src="/static/icons/icon.svg" alt=""></div><span role="heading" aria-level="1">SuperGallery</span></div>
     ${setup ? '<p class="muted" style="margin-top:0">Welcome! Create the password that protects this app. It can delete files, so pick a strong one.</p>' : ''}
     <p class="login-welcome">Your memories. Beautifully in order.</p><form class="col"><input class="input p1" type="password" aria-label="Password" autocomplete="${setup ? 'new-password' : 'current-password'}" placeholder="${setup ? 'New password (12+ characters)' : 'Password'}" autofocus>
     ${setup ? '<input class="input p2" type="password" placeholder="Repeat password">' : ''}
-    <button class="btn primary">${setup ? 'Create password' : 'Sign in'}</button><div class="err danger-text" role="alert"></div></form><p class="login-foot">${icon('lock')}Private to your NAS. Nothing leaves your network.</p></div></div>`;
+    <button class="btn primary">${setup ? 'Create password' : 'Sign in'}</button><div class="err danger-text" role="alert"></div></form><p class="login-foot">${icon('lock')}Private to your NAS. Nothing leaves your network.</p></div></main>`;
   $('form').onsubmit = async (e) => {
     e.preventDefault();
     const pw = $('.p1').value;
@@ -334,7 +334,7 @@ function loginCode() {
 
 async function boot() {
   const a = await api('/auth');
-  if(a.https_required){teardown?.();shellCleanup();document.body.innerHTML=`<div class="login">${loginScene()}<div class="card"><h1>Secure sign-in</h1><p>Two-step verification is enabled. Continue using the encrypted connection to your NAS.</p><a class="btn primary" href="${esc(a.secure_url.replace('#/settings',location.hash||'#/dashboard'))}">Open secure SuperGallery</a></div></div>`;return;}
+  if(a.https_required){teardown?.();shellCleanup();document.body.innerHTML=`<main class="login">${loginScene()}<div class="card"><h1>Secure sign-in</h1><p>Two-step verification is enabled. Continue using the encrypted connection to your NAS.</p><a class="btn primary" href="${esc(a.secure_url.replace('#/settings',location.hash||'#/dashboard'))}">Open secure SuperGallery</a></div></main>`;return;}
   if (!a.ok) return login(a.setup);
   try { state.prefs = { bookmarks: [], ...(await api('/prefs')) }; } catch { /* first run */ }
   state.features = (await api('/features')).values;
@@ -360,7 +360,7 @@ window.addEventListener('offline',()=>{if(!document.querySelector('.connection-n
 window.addEventListener('online',()=>document.querySelector('.connection-notice')?.remove());
 on('changed', (e) => { if (e.detail?.kind === 'index') { emit('indexed'); loadUsers(); } });
 boot().catch(error => {
-  if (!document.body.querySelector('.login,#app')) document.body.innerHTML = `<div class="login">${loginScene()}<div class="card"><h1>Connect to your NAS</h1><p>${esc(error.message)}</p><button class="btn primary retry-connect">Try again</button></div></div>`;
+  if (!document.body.querySelector('.login,#app')) document.body.innerHTML = `<main class="login">${loginScene()}<div class="card"><h1>Connect to your NAS</h1><p>${esc(error.message)}</p><button class="btn primary retry-connect">Try again</button></div></main>`;
   document.querySelector('.retry-connect')?.addEventListener('click',()=>location.reload());
   if(location.protocol==='http:') secureConnection();
 });
