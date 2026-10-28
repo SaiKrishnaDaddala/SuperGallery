@@ -8,7 +8,7 @@ numpy==2.2.6
 pyotp==2.10.0
 qrcode==8.2
 cryptography==50.0.2
-opencv-python-headless==4.13.0.92
+opencv-python-headless==5.0.0.93
 pypdf==6.21.2
 onnxruntime==1.31.1
 tokenizers==0.23.3
