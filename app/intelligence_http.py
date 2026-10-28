@@ -93,7 +93,10 @@ def celebrity(fid: int, body: dict = Body(...)):
     if body.get("consent") != "send-this-crop-to-amazon-rekognition":
         raise HTTPException(400, "Approve sending this face crop to Amazon Rekognition first")
     row = people.face(fid)
-    import boto3
+    try:
+        import boto3
+    except ImportError:
+        raise HTTPException(409, "This image doesn't include the Amazon library. Rebuild with --build-arg WITH_AWS=1 to use celebrity lookup.")
     from botocore.config import Config
     from botocore.exceptions import BotoCoreError, ClientError
     try:

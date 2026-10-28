@@ -68,7 +68,7 @@ SuperGallery is a self-hosted photo gallery and smart file manager for a home NA
 - Local-network only by default; remote access must be switched on deliberately and requires two-step verification.
 - Library mounted read-only on first run; the container drops all Linux capabilities.
 
-See [feature controls](docs/FEATURES.md), [privacy](docs/PRIVACY.md) and [remote access](docs/REMOTE_ACCESS.md) for details. Optional celebrity lookup uses Amazon Rekognition and is off by default; every other feature works fully offline.
+See [feature controls](docs/FEATURES.md), [privacy](docs/PRIVACY.md) and [remote access](docs/REMOTE_ACCESS.md) for details. Optional celebrity lookup uses Amazon Rekognition, is off by default and is not part of the standard image (build with `--build-arg WITH_AWS=1`); every other feature works fully offline.
 
 ## Screenshots
 
@@ -126,6 +126,18 @@ docker compose pull && docker compose up -d
 
 On UGREEN, create a project in **Docker → Project** from `compose.yaml` and redeploy it to update. The [installation guide](docs/INSTALL.md) covers UGREEN step by step, certificates and enabling file changes. To build from source instead: `docker compose -f compose.yaml -f compose.build.yaml up -d --build`.
 
+## Tuning for your NAS
+
+These optional environment variables go in `compose.yaml`; the defaults suit a 4–8 core NAS.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `ANALYZE_WORKERS` | half the cores (2–4) | Photos analysed at once during indexing |
+| `FACE_WORKERS` | `2` | Photos checked for faces at once (People) |
+| `HASH_WORKERS` | `4` | Files read at once when finding duplicates |
+| `BACKGROUND_NICE` | `10` | CPU priority of indexing (0 = same as the web UI, 19 = lowest) |
+| `MODEL_IDLE_MINUTES` | `10` | Unload the AI models after this many idle minutes to free memory (0 = keep loaded) |
+
 ## Good to know
 
 - One shared login sees all mounted folders. Per-person filters organize the library; they are not separate accounts. Mount only what everyone may see.
@@ -146,7 +158,7 @@ Pull requests are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md) and the
 
 If you use, fork, modify or redistribute SuperGallery, keep the [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) files and credit the original project, for example: *"Based on SuperGallery by Sai Krishna Daddala"* with a link to this repository.
 
-SuperGallery stands on great open-source work — CLIP, OpenCV Zoo face models, RapidOCR, FFmpeg, FastAPI, Pillow, Lucide icons and more. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+SuperGallery stands on great open-source work — CLIP, OpenCV Zoo face models, RapidOCR, PyAV/FFmpeg, FastAPI, Pillow, Lucide icons and more. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## License
 

@@ -9,8 +9,8 @@ The application source is licensed under Apache-2.0 (Copyright 2026 Sai Krishna 
 | SFace embeddings | [OpenCV Zoo](https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface), Apache-2.0 | Model downloaded during build; notice in `models/face_recognition_sface-LICENSE` |
 | CLIP and ONNX conversion | [OpenAI CLIP](https://github.com/openai/CLIP), [Xenova model](https://huggingface.co/Xenova/clip-vit-base-patch32), MIT | Tokenizer/config included, quantized models downloaded; `models/semantic/LICENSE-CLIP.txt` |
 | RapidOCR and PaddleOCR-derived OCR models | [RapidOCR](https://github.com/RapidAI/RapidOCR), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), Apache-2.0 | Installed through the pinned Python package; preserve its package notices when redistributing |
-| FFmpeg | [FFmpeg licensing](https://ffmpeg.org/legal.html), license depends on build configuration | Installed from Debian when users build the image; Debian copyright notices remain under `/usr/share/doc` |
-| Python dependencies | Individual projects listed in `requirements.txt` | Installed from their package distributions with their license metadata |
+| PyAV and FFmpeg libraries | [PyAV](https://github.com/PyAV-Org/PyAV), BSD-3-Clause; bundled [FFmpeg](https://ffmpeg.org/legal.html) libraries, LGPL | Installed from the PyAV wheel; used in a helper process for video thumbnails, length and frames |
+| Python dependencies | Individual projects listed in `requirements.txt` (and `requirements-aws.txt` for the optional celebrity lookup) | Installed from their package distributions with their licenses |
 
 Model source revisions and SHA-256 checksums are recorded in `tools/download_models.py`. The release archives contain application source, notices and tokenizer metadata; they do not bundle ONNX weights, Python wheels or a prebuilt container image. The documented build obtains these from their upstream distributors. If you redistribute a built image, review and meet the license/source obligations for that image's exact components, including FFmpeg and codecs.
 

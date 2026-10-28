@@ -72,7 +72,10 @@ def conn() -> sqlite3.Connection:
         c.row_factory = sqlite3.Row
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA synchronous=NORMAL")
-        c.execute("PRAGMA cache_size=-65536")
+        # Every thread has its own connection: keep each private page cache small (8 MB) and read through
+        # one shared memory map instead, which the OS can reclaim when other apps need memory.
+        c.execute("PRAGMA cache_size=-8192")
+        c.execute("PRAGMA mmap_size=268435456")
         c.execute("PRAGMA temp_store=MEMORY")
         c.execute("PRAGMA busy_timeout=60000")
         _local.c = c

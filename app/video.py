@@ -1,36 +1,18 @@
-"""Video metadata (duration, resolution) via ffprobe — header reads only, so it is fast even on large libraries."""
-import json
+"""Video metadata (duration, resolution) via PyAV in a helper process: header reads only, so it is fast even on large libraries."""
 import logging
-import subprocess
-import shutil
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-from . import db
-from .thumbs import FFMPEG
+from . import db, media
 
 log = logging.getLogger("supergallery")
-FFPROBE = shutil.which('ffprobe') or (str(Path(FFMPEG).with_name('ffprobe'+Path(FFMPEG).suffix)) if FFMPEG else None)
 
 
 def probe(path: str):
-    if not FFPROBE:
-        return None
-    try:
-        out = subprocess.run(
-            [FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries",
-             "stream=width,height:format=duration", "-of", "json", path],
-            capture_output=True, timeout=20, check=False).stdout
-        d = json.loads(out or b"{}")
-        st = (d.get("streams") or [{}])[0]
-        dur = float((d.get("format") or {}).get("duration") or 0) or None
-        return st.get("width"), st.get("height"), dur
-    except (subprocess.TimeoutExpired, OSError, ValueError):
-        return None
+    return media.probe(path)
 
 
 def analyze_videos(task):
-    if not FFPROBE:
+    if not media.AVAILABLE:
         return {"videos": 0}
     rows = db.conn().execute("SELECT id, path FROM files WHERE cat='video' AND analyzed=0").fetchall()
     task.progress(0, len(rows), stage="Reading video length & resolution")

@@ -1,5 +1,9 @@
 """Local, incremental photo grouping. No images leave the NAS in this module."""
 import hashlib
+import itertools
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
+import importlib.util
 import io
 import os
 import threading
@@ -19,7 +23,11 @@ MODEL_HASHES = {
     "face_recognition_sface_2021dec.onnx": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
 }
 _lock = threading.RLock()
-_engine = None
+_engines = {}          # detection thread id -> (detector, recognizer); OpenCV models are not thread-safe
+_verified = False
+_last_used = 0.0
+_pool = None
+FACE_WORKERS = max(1, int(os.environ.get("FACE_WORKERS", "2")))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS people(
@@ -51,19 +59,63 @@ def init():
 
 
 def engine():
-    global _engine
-    if _engine is None:
-        import cv2
-        for name, expected in MODEL_HASHES.items():
-            p = MODELS / name
-            if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != expected:
-                raise RuntimeError("Face models are missing or damaged. Reinstall the app's model bundle.")
-        cv2.setNumThreads(2)
-        _engine = (
-            cv2.FaceDetectorYN.create(str(MODELS / next(iter(MODEL_HASHES))), "", (320, 320), 0.90, 0.3, 5000),
-            cv2.FaceRecognizerSF.create(str(MODELS / "face_recognition_sface_2021dec.onnx"), ""),
-        )
-    return _engine
+    """This thread's face models, loaded on first use (each detection thread has its own pair)."""
+    global _verified, _last_used
+    _last_used = time.monotonic()
+    key = threading.get_ident()
+    with _lock:
+        pair = _engines.get(key)
+        if pair is None:
+            import cv2
+            if not _verified:
+                for name, expected in MODEL_HASHES.items():
+                    p = MODELS / name
+                    if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != expected:
+                        raise RuntimeError("Face models are missing or damaged. Reinstall the app's model bundle.")
+                _verified = True
+            # Photos are processed FACE_WORKERS at a time, so keep OpenCV's own threading small.
+            cv2.setNumThreads(max(1, 2 // FACE_WORKERS))
+            pair = (
+                cv2.FaceDetectorYN.create(str(MODELS / next(iter(MODEL_HASHES))), "", (320, 320), 0.90, 0.3, 5000),
+                cv2.FaceRecognizerSF.create(str(MODELS / "face_recognition_sface_2021dec.onnx"), ""),
+            )
+            _engines[key] = pair
+    return pair
+
+
+def release_idle(seconds):
+    """Drop the face models after `seconds` without use; they reload on demand."""
+    with _lock:
+        if _engines and time.monotonic() - _last_used > seconds:
+            _engines.clear()
+            return True
+    return False
+
+
+def _detector_pool():
+    # One long-lived pool keeps thread ids, and therefore loaded models, stable across batches.
+    global _pool
+    with _lock:
+        if _pool is None:
+            _pool = ThreadPoolExecutor(FACE_WORKERS, thread_name_prefix="faces")
+    return _pool
+
+
+def _detect_ahead(rows):
+    """Yield (row, future-or-None) in order while up to 2 x FACE_WORKERS photos are decoded and detected."""
+    pool, source, pending = _detector_pool(), iter(rows), deque()
+
+    def submit(row):
+        return row, (pool.submit(detect, row["path"]) if row["ext"] in DECODABLE else None)
+
+    for row in itertools.islice(source, 2 * FACE_WORKERS):
+        pending.append(submit(row))
+    while pending:
+        item = pending.popleft()
+        nxt = next(source, None)
+        if nxt is not None:
+            pending.append(submit(nxt))
+        yield item
 
 
 def detect(path):
@@ -123,14 +175,14 @@ def index(task, owners=None, retry=False):
             (" OR i.state='error'" if retry else "") + ") ORDER BY f.ts DESC, f.id", params)
         count, errors = 0, 0
         task.progress(total=len(rows), done=0, stage="Finding people", message="Processing on this NAS")
-        for n, row in enumerate(rows):
+        for n, (row, pending) in enumerate(_detect_ahead(rows)):
             task.progress(done=n, message=f"{n:,} of {len(rows):,} photos checked · {count:,} faces found")
             found, state = [], "done"
             try:
-                if row["ext"] in DECODABLE:
-                    found = detect(row["path"])
-                else:
+                if pending is None:
                     state = "unsupported"
+                else:
+                    found = pending.result()
             except Exception:
                 state, errors = "error", errors + 1
             task.progress()  # Honor cancellation before committing this photo.
@@ -167,7 +219,7 @@ def status():
         "AND i.path=f.path AND i.mtime=f.mtime AND i.size=f.size" + where, params).fetchone()
     return {**{k: row[k] or 0 for k in row.keys()}, "task": next((t for t in jobs.history()
         if t["kind"] == "faces" and t["status"] in ("queued", "running")), None),
-        "local": True, "celebrity_available": os.getenv("CELEBRITY_MATCHING_ENABLED") == "1"}
+        "local": True, "celebrity_available": os.getenv("CELEBRITY_MATCHING_ENABLED") == "1" and importlib.util.find_spec("boto3") is not None}
 
 
 def listing(q="", offset=0, limit=120):

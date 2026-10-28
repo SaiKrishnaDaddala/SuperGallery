@@ -1,18 +1,15 @@
 """Thumbnail / preview generation with an on-disk WebP cache."""
 import hashlib
-import io
 import os
-import shutil
-import subprocess
 import threading
 
 from PIL import Image, ImageOps
 
-from . import analyzer  # noqa: F401 - registers the HEIC opener
+from . import analyzer, media  # noqa: F401 - analyzer registers the HEIC opener
 from .config import DECODABLE, THUMB_DIR, VIDEO_THUMB
 
 _sem = threading.BoundedSemaphore(max(2, (os.cpu_count() or 4)))
-FFMPEG = shutil.which("ffmpeg")
+VIDEO = media.AVAILABLE
 
 
 def _cache_path(path: str, st: os.stat_result, size: int) -> str:
@@ -21,18 +18,11 @@ def _cache_path(path: str, st: os.stat_result, size: int) -> str:
 
 
 def _video_frame(path: str, size: int) -> Image.Image | None:
-    if not FFMPEG:
-        return None
-    for seek in ("3", "0"):
-        try:
-            out = subprocess.run(
-                [FFMPEG, "-v", "error", "-ss", seek, "-i", path, "-frames:v", "1",
-                 "-vf", f"scale={size}:-2", "-f", "image2pipe", "-vcodec", "mjpeg", "-"],
-                capture_output=True, timeout=30, check=False).stdout
-            if out:
-                return Image.open(io.BytesIO(out))
-        except (subprocess.TimeoutExpired, OSError):
-            return None
+    # A frame 3 s in avoids black intros; very short clips fall back to the first frame.
+    for seek in (3, 0):
+        im = media.frame(path, seek, size)
+        if im is not None:
+            return im
     return None
 
 

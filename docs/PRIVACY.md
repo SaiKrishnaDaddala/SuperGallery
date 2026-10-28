@@ -17,7 +17,7 @@ Face data and search indexes can reveal private information even when original f
 
 The Docker build downloads operating-system packages, Python dependencies and pinned public models. Core photo search, OCR, document search and face grouping run on the host. There is no required cloud account or application analytics service. Your browser and configured gateway still make their normal network connections; a remote gateway can process traffic and metadata.
 
-Optional celebrity suggestions require `CELEBRITY_MATCHING_ENABLED=1` plus separately configured AWS credentials/region. They send a selected face image to Amazon Rekognition when requested and may incur AWS charges. The default is off. Review the provider's terms and data handling before enabling it. There is no automatic identity guarantee, and suggested names need human review.
+Optional celebrity suggestions require an image built with `--build-arg WITH_AWS=1`, `CELEBRITY_MATCHING_ENABLED=1` plus separately configured AWS credentials/region. They send a selected face image to Amazon Rekognition when requested and may incur AWS charges. The default is off. Review the provider's terms and data handling before enabling it. There is no automatic identity guarantee, and suggested names need human review.
 
 ## Removal and backups
 

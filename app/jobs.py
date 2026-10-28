@@ -81,6 +81,8 @@ class Runner(threading.Thread):
         return any(t.kind == kind and t.status == "queued" for t in _history)
 
     def run(self):
+        from .memory import lower_priority
+        lower_priority()  # indexing yields the CPU to the web UI and other NAS apps
         while True:
             t = self.q.get()
             if t.cancel_requested:
