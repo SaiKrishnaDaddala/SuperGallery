@@ -4,6 +4,10 @@
 
 <h1 align="center">SuperGallery</h1>
 
+![SuperGallery — Your memories. On your NAS.](docs/screenshots/social-preview.jpg)
+
+<p align="center"><a href="#quick-start"><b>Get started with Docker</b></a> · <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/discussions">Ask a setup question</a> · <a href="docs/SHARING.md">Share SuperGallery</a></p>
+
 <p align="center">
   <b>Your photos, videos and files — searchable, sorted and cleaned up, on your own NAS.</b><br>
   Created by <a href="https://github.com/SaiKrishnaDaddala">Sai Krishna Daddala</a>
