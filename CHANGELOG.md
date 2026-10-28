@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Smaller image: video thumbnails, length and frames use PyAV (FFmpeg libraries in a 35 MB wheel) in a time-limited helper process instead of Debian's ffmpeg package (about 135 MB less to download). The optional Amazon library is only installed with `--build-arg WITH_AWS=1`.
+- Lower memory: AI models unload after 10 idle minutes (`MODEL_IDLE_MINUTES`) and freed memory is returned to the system; each database connection keeps an 8 MB cache and shares one memory-mapped view instead of 64 MB each.
+- Gentler indexing: background work runs at lower CPU priority (`BACKGROUND_NICE`) and photo analysis uses half the cores by default.
+- Faster People indexing: two photos are checked at once (`FACE_WORKERS`), about 1.8x faster in tests.
+- Pages, scripts, styles and API data are gzip-compressed (about 3x smaller on first load); photos, videos and downloads are not.
+- File details and text previews of a file deleted moments earlier return "not found" instead of a server error.
 - Search results and other file lists show photo thumbnails again instead of folder icons.
 - Sign-in animation also plays (calmer) when the device asks for reduced motion, with a remembered Pause/Play button.
 - Private network IP addresses (10.x, 172.16–31.x, 192.168.x) work without adding them to ALLOWED_HOSTS.

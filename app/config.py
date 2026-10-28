@@ -30,7 +30,8 @@ TRASH_NAME = ".supergallery_trash"
 TRASH_RETENTION_DAYS = int(os.environ.get("TRASH_RETENTION_DAYS", "30"))
 SCAN_INTERVAL_HOURS = float(os.environ.get("SCAN_INTERVAL_HOURS", "24"))
 HASH_WORKERS = int(os.environ.get("HASH_WORKERS", "4"))
-ANALYZE_WORKERS = int(os.environ.get("ANALYZE_WORKERS", str(max(2, (os.cpu_count() or 4) - 1))))
+# Half the cores (2-4) leaves room for the NAS itself and its other apps while indexing.
+ANALYZE_WORKERS = int(os.environ.get("ANALYZE_WORKERS", str(min(4, max(2, (os.cpu_count() or 4) // 2)))))
 MIN_DUP_SIZE = int(os.environ.get("MIN_DUP_SIZE", "1"))
 
 # Folder names that are never scanned or touched (NAS system / recycle / app data).

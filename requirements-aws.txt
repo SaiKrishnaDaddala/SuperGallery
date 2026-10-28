@@ -1,0 +1,2 @@
+# Only for the optional Amazon Rekognition celebrity lookup (build with WITH_AWS=1).
+boto3==1.43.119

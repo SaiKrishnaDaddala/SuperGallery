@@ -4,7 +4,6 @@ import heapq
 import io
 import math
 import os
-import subprocess
 import threading
 import time
 from functools import lru_cache
@@ -15,7 +14,9 @@ from PIL import Image, ImageOps
 from fastapi import HTTPException
 from . import db, fileops, jobs, queries, scope, video
 from .config import DECODABLE
-from .thumbs import FFMPEG
+from . import media as media_helper
+
+VIDEO_AVAILABLE = media_helper.AVAILABLE
 
 MODEL = 'clip-b32-q8-v1'
 MODELS = Path(__file__).resolve().parent.parent / 'models/semantic'
@@ -27,6 +28,7 @@ HASHES = {
 _lock = threading.RLock()
 _sessions = {}
 _tokenizer = None
+_last_used = 0.0
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS visual_index(file_id INTEGER PRIMARY KEY, path TEXT NOT NULL,
@@ -47,7 +49,9 @@ def init():
 
 
 def session(kind):
+    global _last_used
     with _lock:
+        _last_used = time.monotonic()
         if kind not in _sessions:
             import onnxruntime as ort
             name = kind + '_model_quantized.onnx'
@@ -60,6 +64,17 @@ def session(kind):
             options.add_session_config_entry('session.intra_op.allow_spinning', '0')
             _sessions[kind] = ort.InferenceSession(str(path), sess_options=options, providers=['CPUExecutionProvider'])
         return _sessions[kind]
+
+
+def release_idle(seconds):
+    """Drop the CLIP models and tokenizer after `seconds` without use; they reload on demand."""
+    global _tokenizer
+    with _lock:
+        if (_sessions or _tokenizer is not None) and time.monotonic() - _last_used > seconds:
+            _sessions.clear()
+            _tokenizer = None
+            return True
+    return False
 
 
 def normalize(vector):
@@ -110,19 +125,18 @@ def sample_times(duration):
 
 
 def video_frame(path, seconds):
-    result = subprocess.run([FFMPEG, '-v', 'error', '-nostdin', '-threads', '2', '-ss', str(seconds),
-        '-i', path, '-an', '-frames:v', '1', '-vf', 'scale=640:640:force_original_aspect_ratio=decrease',
-        '-f', 'image2pipe', '-vcodec', 'mjpeg', '-'], capture_output=True, timeout=25, check=True)
-    with Image.open(io.BytesIO(result.stdout)) as image:
-        return image.convert('RGB')
+    image = media_helper.frame(path, seconds, 640, timeout=25)
+    if image is None:
+        raise RuntimeError('No video frame at this time')
+    return image
 
 
 def index(task, owners=None, retry=False, media='image'):
     scope.set_owners(owners)
     try:
         session('vision')
-        if media == 'video' and not FFMPEG:
-            raise RuntimeError('Video search requires ffmpeg on the NAS.')
+        if media == 'video' and not VIDEO_AVAILABLE:
+            raise RuntimeError('Video search needs the PyAV video library, which is missing from this installation.')
         where, args = scope.where('f.owner', 'f.cat=?', [media])
         rows = jobs.index_batch(task, 'SELECT f.id,f.path,f.mtime,f.size,f.ext,f.duration FROM files f LEFT JOIN visual_index v ON v.file_id=f.id' + where +
             " AND (v.file_id IS NULL OR v.path!=f.path OR v.mtime!=f.mtime OR v.size!=f.size OR v.model!=?" +

@@ -29,6 +29,29 @@ app = FastAPI(title="SuperGallery", docs_url="/api/docs", redoc_url=None, openap
 
 from .auth_http import install as install_auth
 install_auth(app)
+
+
+class TextCompression:
+    """Gzip the page, scripts, styles and JSON; never photos, videos, downloads or ranged reads."""
+    MEDIA_PATHS = ("/api/raw", "/api/thumb", "/api/zip", "/api/trash/thumb", "/api/faces/", "/api/visual/frame",
+                   "/api/backups/")
+    MEDIA_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "video/mp4", "audio/mpeg",
+                   "application/zip", "application/pdf", "application/octet-stream")
+
+    def __init__(self, app):
+        from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=1024, compresslevel=6,
+                                   exclude_content_types=DEFAULT_EXCLUDED_CONTENT_TYPES + self.MEDIA_TYPES)
+
+    async def __call__(self, scope, receive, send):
+        if (scope["type"] == "http" and not scope["path"].startswith(self.MEDIA_PATHS)
+                and not any(name == b"range" for name, _ in scope["headers"])):
+            return await self.gzip(scope, receive, send)
+        return await self.app(scope, receive, send)
+
+
+app.add_middleware(TextCompression)
 from .intelligence_http import router as intelligence_router
 app.include_router(intelligence_router)
 from .discovery_http import router as discovery_router
@@ -134,6 +157,8 @@ def startup():
     visual_search.init(); albums.init(); intelligence_tasks.init()
     analyzer.reclassify_all()
     jobs.start()
+    from . import memory
+    memory.start()
     intelligence_tasks.resume()
     threading.Thread(target=scheduler, daemon=True, name="scheduler").start()
     log.info("SuperGallery ready. Roots: %s", SCAN_ROOTS)
@@ -148,7 +173,7 @@ def status():
     tr = c.execute("SELECT COUNT(*), COALESCE(SUM(size),0) FROM trash").fetchone()
     return {"tasks": jobs.history(), "files": n[0], "size": n[1], "trash_count": tr[0], "trash_size": tr[1],
             "last_scan": float(db.kv_get("last_scan", 0) or 0), "roots": SCAN_ROOTS,
-            "ffmpeg": bool(thumbs.FFMPEG), "auth": True, "env_password": bool(APP_PASSWORD),
+            "ffmpeg": bool(thumbs.VIDEO), "auth": True, "env_password": bool(APP_PASSWORD),
             "scan_interval_hours": SCAN_INTERVAL_HOURS, "trash_days": TRASH_RETENTION_DAYS,
             "version": features.VERSION, "features": features.settings()}
 
@@ -411,7 +436,10 @@ def info(path: str, hash: bool = False):
         rp = fileops.safe_path(path, allow_root=True)
     except fileops.OpError as e:
         err(e)
-    st = os.lstat(rp)
+    try:
+        st = os.lstat(rp)
+    except FileNotFoundError:
+        raise HTTPException(404, "This file no longer exists.")
     c = db.conn()
     out = {"path": rp, "name": pp.basename(rp), "size": st.st_size, "mtime": st.st_mtime, "ctime": st.st_ctime,
            "mode": oct(st.st_mode & 0o777), "uid": st.st_uid, "gid": st.st_gid, "dir": os.path.isdir(rp),
@@ -469,8 +497,11 @@ def raw(path: str | None = None, id: int | None = None, download: bool = False):
 @app.get("/api/text")
 def text(path: str, limit: int = 262144):
     rp = _path_for(None, path)
-    with open(rp, "rb") as f:
-        data = f.read(max(0, min(limit, 2 << 20)))
+    try:
+        with open(rp, "rb") as f:
+            data = f.read(max(0, min(limit, 2 << 20)))
+    except FileNotFoundError:
+        raise HTTPException(404, "This file no longer exists.")
     return Response(data.decode("utf-8", "replace"), media_type="text/plain; charset=utf-8")
 
 
