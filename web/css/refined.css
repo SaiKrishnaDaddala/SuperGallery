@@ -271,7 +271,8 @@ dialog.lightbox:not([open]) { display:none; }
 .lb-top { gap:10px; background:linear-gradient(#00000085,transparent); min-height:66px; }
 .lb-top .btn { border-radius:20px; background:#ffffff1f; color:#fff; border:0; }
 .lb-btn { background:#ffffff24; backdrop-filter:blur(18px); border:1px solid #ffffff25; }
-.toasts { z-index:100; }
+.toasts { z-index:100; pointer-events:none; }
+.toasts > * { pointer-events:auto; }
 .toast { border-radius:14px; font-size:13px; }
 #app.collapsed .brand { padding:0 15px; }
 #app.collapsed .side-foot > a span,#app.collapsed .library-health > span { display:none; }
@@ -438,7 +439,7 @@ dialog.lightbox:not([open]) { display:none; }
   .lb-top .btn { padding:6px 10px; min-height:40px; font-size:12px; }
   .lb-top .close { margin-left:auto; }
   .lb-side { position:absolute; right:0; width:min(320px,90vw); top:110px; bottom:0; z-index:2; background:#202024f5; }
-  .toasts { bottom:calc(90px + env(safe-area-inset-bottom)); left:16px; right:16px; }
+  .toasts { top:auto; bottom:calc(90px + env(safe-area-inset-bottom)); left:16px; right:16px; width:auto; transform:none; }
   .home-skeleton { grid-template-columns:1fr; }
 }
 @media (max-width:360px) {
@@ -487,3 +488,38 @@ dialog.lightbox:not([open]) { display:none; }
   .tbl td[colspan]:has(> .empty) { padding:0; }
   .tbl td[colspan] > .empty { position:sticky; left:0; width:calc(100vw - 40px); box-sizing:border-box; }
 }
+
+/* People: select groups to merge. */
+.person-card { position:relative; }
+.person-card .pick-mark { display:none; position:absolute; top:14px; right:calc(50% - 74px); width:28px; height:28px; border-radius:50%; place-items:center; background:var(--accent-fill); color:#fff; box-shadow:0 2px 8px #0003; }
+.person-card .pick-mark svg { width:16px; height:16px; }
+.people-grid.selecting .person-card { cursor:pointer; }
+.people-grid.selecting .person-card img { transition:transform .15s; }
+.people-grid.selecting .person-card.picked img { transform:scale(.92); box-shadow:0 0 0 4px var(--accent-fill); }
+.people-grid.selecting .person-card.picked .pick-mark { display:grid; }
+.people-selbar:not([hidden]) { position:sticky; bottom:16px; z-index:5; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; margin-top:12px; border-radius:16px; background:var(--glass-strong); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); box-shadow:var(--shadow-pop); }
+/* Result lists: the selection bar floats over the list, so rows never jump while you select. */
+.panel-list { position:relative; }
+.panel-list .selbar-slot { position:fixed; z-index:30; }
+.panel-list .selbar-slot:empty { display:none; }
+.panel-list .selbar-slot > div { border:0!important; border-radius:14px; background:var(--glass-strong)!important; -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); box-shadow:var(--shadow-pop); }
+/* Search: whose photos these are. */
+.person-context:not([hidden]) { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:12px 16px; margin:0 auto 14px; border-radius:16px; background:var(--panel); border:.5px solid var(--line); }
+.person-context img { width:44px; height:44px; border-radius:50%; object-fit:cover; }
+.person-context .grow { display:flex; flex-direction:column; min-width:180px; }
+
+/* New-version notice and release notes. */
+.update-notice { position:fixed; right:20px; bottom:20px; z-index:40; display:flex; align-items:center; gap:12px; flex-wrap:wrap; max-width:min(560px, calc(100vw - 32px)); padding:14px 16px; border-radius:18px; border:.5px solid var(--line2); background:var(--glass-strong); -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); box-shadow:var(--shadow-pop); animation:login-rise .4s ease both; }
+.update-notice .grow { display:flex; flex-direction:column; min-width:160px; }
+.update-notice .grow span { font-size:12.5px; color:var(--muted); }
+.update-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:12px; background:var(--accent-fill); color:#fff; }
+.update-icon svg { width:20px; height:20px; }
+.release-notes h3, .update-steps h3 { margin:16px 0 6px; font-size:15px; }
+.release-notes ul, .update-steps ol { margin:4px 0 8px 20px; line-height:1.55; }
+.update-steps pre { background:var(--panel2); padding:10px 12px; border-radius:10px; overflow:auto; }
+.updates-card h3 { display:flex; align-items:center; gap:8px; }
+@media (max-width:640px) { .update-notice { left:16px; right:16px; bottom:calc(84px + env(safe-area-inset-bottom)); } }
+/* A selection bar at the bottom needs the space; the notice returns when the selection is cleared. */
+body:has(.panel-list .selbar-slot:not(:empty), .people-selbar:not([hidden])) .update-notice { display:none; }
+/* Phones: keep the title readable and let the page actions wrap below it. */
+@media (max-width:640px) { .page-head > .grow { min-width:min(100%, 200px); } }

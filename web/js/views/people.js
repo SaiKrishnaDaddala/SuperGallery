@@ -6,10 +6,11 @@ const displayName = p => p.name || 'Add a name';
 const modal = (title, body, actions) => coreModal({title, body, actions});
 
 export function peopleView(root, params) {
-  let alive = true, version = 0, offset = 0, searchTimer, statusTimer, current, capability = false;
+  let alive = true, version = 0, offset = 0, searchTimer, statusTimer, current, capability = false, selecting = false;
+  const picked = new Map();
   const pid = Number(params.get('id')) || null;
   const el = h(`<div class="view people-view"><div class="page-head"><div class="grow"><div class="eyebrow">YOUR PHOTO LIBRARY</div><h1>People</h1><p>Familiar faces. All in one place.</p></div><button class="btn index-people">${icon('sparkles')}Find people</button></div>
-    <div class="people-progress" aria-live="polite"></div><div class="people-toolbar"><div class="search-box">${icon('search')}<input class="find-person" aria-label="Find a person" placeholder="Find someone by name"></div><button class="btn ghost privacy">${icon('lock')}On your NAS</button></div><div class="people-content"><div class="empty"><div class="spin"></div></div></div></div>`);
+    <div class="people-progress" aria-live="polite"></div><div class="people-toolbar"><div class="search-box">${icon('search')}<input class="find-person" aria-label="Find a person" placeholder="Find someone by name"></div><button class="btn select-people">${icon('selectAll')}Select</button><button class="btn ghost privacy">${icon('lock')}On your NAS</button></div><div class="people-content"><div class="empty"><div class="spin"></div></div></div><div class="people-selbar" hidden></div></div>`);
   root.append(el);
 
   async function refreshStatus() {
@@ -29,7 +30,11 @@ export function peopleView(root, params) {
   async function load(append = false) {
     const v = ++version;
     try {
-      if (pid) { current = await api(`/people/${pid}?offset=${offset}`); if (alive && v === version) drawPerson(current, append); }
+      if (pid) {
+        try { current = await api(`/people/${pid}?offset=${offset}`); }
+        catch (e) { if (/not found/i.test(e.message)) { toast('That person has no photos left.', 'info'); location.hash = '#/people'; return; } throw e; }
+        if (alive && v === version) drawPerson(current, append);
+      }
       else {
         const q = $('.find-person', el).value.trim();
         const r = await api(`/people?q=${encodeURIComponent(q)}&offset=${offset}`);
@@ -37,8 +42,9 @@ export function peopleView(root, params) {
         const host = $('.people-content', el);
         if (!append) host.innerHTML = r.total ? '<div class="people-grid"></div>' : `<div class="people-empty"><div class="people-empty-icon">${icon('users')}</div><h2>${q ? 'No person with that name' : 'Make room for familiar faces'}</h2><p>${q ? 'Try another name, or clear the search to see unnamed groups.' : 'Find people groups faces from your photos here. Add names, bring matching groups together, and revisit every moment with someone.'}</p>${q ? '' : '<button class="btn primary start-faces">Find people in my photos</button>'}</div>`;
         $('.start-faces', host)?.addEventListener('click', start);
-        $('.people-grid', host)?.insertAdjacentHTML('beforeend', r.items.map(p => `<a class="person-card ${p.name ? '' : 'unnamed'}" href="#/people?id=${p.id}"><img loading="lazy" src="${faceImage(p.cover)}" alt="" width="160" height="160"><strong>${esc(displayName(p))}</strong><span>${num(p.photos)} ${p.photos === 1 ? 'photo' : 'photos'}</span></a>`).join(''));
+        $('.people-grid', host)?.insertAdjacentHTML('beforeend', r.items.map(p => `<a class="person-card ${p.name ? '' : 'unnamed'}${picked.has(p.id) ? ' picked' : ''}" href="#/people?id=${p.id}" data-id="${p.id}" data-owner="${esc(p.owner)}" data-name="${esc(p.name || '')}" data-photos="${p.photos}" data-cover="${p.cover}"><span class="pick-mark" aria-hidden="true">${icon('check')}</span><img loading="lazy" src="${faceImage(p.cover)}" alt="" width="160" height="160"><strong>${esc(displayName(p))}</strong><span>${num(p.photos)} ${p.photos === 1 ? 'photo' : 'photos'}</span></a>`).join(''));
         moreButton(host, offset + r.items.length < r.total);
+        wireCards(host);
       }
     } catch (e) { if (alive) { $('.people-content', el).innerHTML = `<div class="empty"><h2>Couldn’t load people</h2><p>${esc(e.message)}</p><button class="btn retry">Try again</button></div>`; $('.retry', el).onclick = () => load(); } }
   }
@@ -53,6 +59,12 @@ export function peopleView(root, params) {
   function drawPerson(person, append) {
     const host = $('.people-content', el);
     $('.people-toolbar', el).hidden = true;
+    if (!person.total) {
+      $('h1', el).textContent = person.name || 'Unnamed person';
+      $('.page-head p', el).textContent = 'No photos right now.';
+      host.innerHTML = `<a class="back-link" href="#/people">${icon('left')}All people</a><div class="people-empty"><div class="people-empty-icon">${icon('users')}</div><h2>No photos of this person are left</h2><p>They were deleted or moved to someone else. If that was a mistake, restore them from Recently deleted and they will appear here again.</p><div class="row" style="justify-content:center;gap:10px"><a class="btn" href="#/trash">Recently deleted</a><a class="btn primary" href="#/people">Back to People</a></div></div>`;
+      return;
+    }
     $('h1', el).textContent = person.name || 'Unnamed person';
     $('.page-head p', el).textContent = `${num(person.total)} faces · Matches are suggestions. You can correct them below.`;
     if (!append) host.innerHTML = `<a class="back-link" href="#/people">${icon('left')}All people</a><div class="person-actions"><button class="btn primary name-person">${icon('edit')}${person.name ? 'Edit name' : 'Add a name'}</button><a class="btn" href="#/search?person=${person.id}">${icon('images')}View all photos</a><button class="btn merge-person">Merge with…</button><button class="btn ghost celebrity-person">Celebrity suggestion</button></div><div class="face-grid"></div>`;
@@ -60,9 +72,66 @@ export function peopleView(root, params) {
     $('.name-person', host).onclick = () => namePerson(person);
     $('.merge-person', host).onclick = () => mergePerson(person);
     $('.celebrity-person', host).onclick = () => celebrity(person);
-    $$('.face-open', host).forEach(b => b.onclick = async () => { try { const r = await api('/query', {filter:{ids:[+b.dataset.file]}}); if(r.items.length) lightbox(r.items, 0); } catch(e){ fail(e); } });
+    $$('.face-open', host).forEach(b => b.onclick = async () => {
+      try {
+        const r = await api('/query', {filter: {person_id: person.id}, sort: 'ts', order: 'desc', limit: 1000});
+        const items = r.items.length ? r.items : (await api('/query', {filter: {ids: [+b.dataset.file]}})).items;
+        const start = Math.max(0, items.findIndex(it => it.id === +b.dataset.file));
+        if (items.length) lightbox(items, start, {onDeleted: () => { offset = 0; load(); }});
+      } catch (e) { fail(e); }
+    });
     $$('.correct-face', host).forEach(b => b.onclick = () => correct(+b.closest('[data-face]').dataset.face));
     moreButton(host, offset + person.faces.length < person.total);
+  }
+
+  function wireCards(host) {
+    $('.people-grid', host)?.classList.toggle('selecting', selecting);
+    $$('.person-card', host).forEach(card => card.onclick = e => {
+      if (!selecting) return;
+      e.preventDefault();
+      const id = +card.dataset.id;
+      if (picked.has(id)) picked.delete(id);
+      else picked.set(id, {id, owner: card.dataset.owner, name: card.dataset.name, photos: +card.dataset.photos, cover: +card.dataset.cover});
+      card.classList.toggle('picked', picked.has(id));
+      drawSelbar();
+    });
+  }
+
+  function setSelecting(on) {
+    selecting = on;
+    if (!on) picked.clear();
+    $('.select-people', el).innerHTML = on ? `${icon('x')}Cancel` : `${icon('selectAll')}Select`;
+    $$('.person-card', el).forEach(card => card.classList.remove('picked'));
+    $('.people-grid', el)?.classList.toggle('selecting', on);
+    drawSelbar();
+  }
+
+  function drawSelbar() {
+    const bar = $('.people-selbar', el), list = [...picked.values()];
+    bar.hidden = !selecting;
+    if (!selecting) return;
+    const owners = new Set(list.map(p => p.owner));
+    bar.innerHTML = `<span><b>${num(list.length)}</b> selected</span><span class="muted">${list.length < 2 ? 'Pick the groups that are the same person' : owners.size > 1 ? 'People from different libraries can’t be merged' : ''}</span><span class="grow"></span><button class="btn primary merge-picked" ${list.length < 2 || owners.size > 1 ? 'disabled' : ''}>Merge into one person</button>`;
+    $('.merge-picked', bar).onclick = () => mergePicked(list);
+  }
+
+  async function mergePicked(list) {
+    // Keep a named group if there is one, otherwise the largest.
+    const keep = [...list].sort((a, b) => (!!b.name - !!a.name) || (b.photos - a.photos))[0];
+    const body = h(`<div class="col"><p>All ${num(list.reduce((s, p) => s + p.photos, 0))} photos become one person. Choose which name and cover to keep.</p>
+      <div class="target-results">${list.map(p => `<label class="person-option"><input type="radio" name="keep" value="${p.id}" ${p.id === keep.id ? 'checked' : ''}><img src="${faceImage(p.cover)}" alt=""><span>${esc(p.name || 'Unnamed person')} · ${num(p.photos)} ${p.photos === 1 ? 'photo' : 'photos'}</span></label>`).join('')}</div>
+      <p class="muted">You can still correct individual photos afterwards.</p><p class="dialog-error danger-text" role="alert"></p></div>`);
+    const ok = await modal(`Merge ${list.length} people?`, body, [{label: 'Cancel', value: null}, {label: 'Merge', value: 'merge', cls: 'primary', validate: async () => {
+      const target = +$('input[name=keep]:checked', body).value;
+      try {
+        for (const p of list) if (p.id !== target) await api(`/people/${p.id}/merge`, {target});
+        return true;
+      } catch (e) { $('.dialog-error', body).textContent = e.message; return false; }
+    }}]);
+    if (ok !== 'merge') return;
+    setSelecting(false);
+    offset = 0; await load();
+    toast(`Merged ${list.length} groups into one person.`);
   }
 
   async function namePerson(person, suggestion = '') {
@@ -102,12 +171,13 @@ export function peopleView(root, params) {
 
   async function start() {try{await api('/people/index',{retry:true});poll(true);await refreshStatus();}catch(e){fail(e);}}
   $('.index-people',el).onclick=start;
+  $('.select-people',el).onclick=()=>setSelecting(!selecting);
   $('.find-person',el).oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{offset=0;load();},200);};
   $('.privacy',el).onclick=async()=>{
     const answer=await modal('People stays on your NAS',h('<div class="col"><p>Face detection, matching, names and face crops are stored and processed on your NAS. Matches can be imperfect; correct or merge groups whenever needed.</p><p>Celebrity lookup is separate and only sends a selected crop after you approve it.</p><p class="muted">Removing People data clears names, groups and saved face crops for the selected libraries. Original photos are kept. Pause indexing first.</p></div>'),[{label:'Remove People data',value:'clear',cls:'danger'},{label:'Done',cls:'primary'}]);
     if(answer==='clear'){const confirm=await modal('Remove People data?',h('<p>Remove all names, groups and face crops in the selected libraries? This cannot be undone. You can scan the original photos again.</p>'),[{label:'Cancel'},{label:'Remove data',value:'yes',cls:'danger'}]);if(confirm==='yes'){try{await api('/people/clear',{});offset=0;await load();refreshStatus();}catch(e){fail(e);}}}
   };
-  const off=on('changed',e=>{if(e.detail?.kind==='faces'){offset=0;load();refreshStatus();}});
+  const off=on('changed',e=>{if(['faces','op','purge','rule','index'].includes(e.detail?.kind)){offset=0;load();refreshStatus();}});
   refreshStatus();load();
   return()=>{alive=false;version++;clearTimeout(searchTimer);clearTimeout(statusTimer);off();};
 }

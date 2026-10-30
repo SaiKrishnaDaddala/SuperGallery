@@ -102,4 +102,4 @@ def test_all_flags_default_enabled_for_existing_installations(feature_library):
     assert all(features.settings().values())
     features.update_features(features.Changes(values={key:False for key in features.CATALOG}))
     assert not any(features.settings().values())
-    assert features.describe()['version']=='2.4.0'
+    assert features.describe()['version']=='2.5.0'

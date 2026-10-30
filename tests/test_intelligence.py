@@ -92,8 +92,13 @@ def test_deleting_last_photo_removes_stored_face_data(library):
     c,add=library
     fid=add('one.jpg');add_face(c,fid,'Test person')
     c.execute('DELETE FROM files WHERE id=?',(fid,))
-    for table in ('faces','face_index','people'):
+    for table in ('faces','face_index'):
         assert c.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]==0
+    # The name waits for the recycle-bin period so a restore keeps it, then it is forgotten too.
+    assert c.execute("SELECT COUNT(*) FROM people WHERE emptied IS NOT NULL").fetchone()[0]==1
+    assert people.forget_emptied(30)==0
+    assert people.forget_emptied(-1)==1
+    assert c.execute('SELECT COUNT(*) FROM people').fetchone()[0]==0
 
 
 def test_search_operators_and_literal_fts(library):

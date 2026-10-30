@@ -94,6 +94,7 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
     $$('.status .seg button', el).forEach((b) => (b.onclick = () => { st.mode = b.dataset.m; vl.scrollTop = 0; paint(); status(); }));
     const slot = $('.selbar-slot', el);
     if (!n) { slot.innerHTML = ''; return; }
+    placeBar();
     slot.innerHTML = `<div class="row wrap" style="gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel2)">
       <b>${num(n)}</b> selected <span class="muted">· ${bytes(selSize())}</span>
       ${!st.all && st.total > n ? `<button class="btn sm ghost s-all">${icon('selectAll')}Select all ${num(st.total)} matching</button>` : ''}
@@ -190,6 +191,16 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
       if (d.dataset.k === st.sort) d.insertAdjacentHTML('beforeend', icon(st.order === 'asc' ? 'up' : 'down').replace('class="i ', 'style="width:13px;height:13px" class="i '));
     });
   }
+
+  // The selection bar floats at the bottom of the screen over the list, so it is always reachable.
+  function placeBar() {
+    const slot = $('.selbar-slot', el), box = el.getBoundingClientRect(), tabbar = document.querySelector('.tabbar');
+    const tab = tabbar && getComputedStyle(tabbar).display !== 'none' ? tabbar.getBoundingClientRect().height : 0;
+    slot.style.left = Math.max(8, box.left + 8) + 'px';
+    slot.style.width = Math.max(240, Math.min(box.width, innerWidth - 16) - 16) + 'px';
+    slot.style.bottom = (16 + tab) + 'px';
+  }
+  addEventListener('resize', () => { if ($('.selbar-slot', el)?.innerHTML) placeBar(); });
 
   const api_ = {
     el,

@@ -14,6 +14,7 @@ import { dashboardView as analyticsView } from './views/analytics.js';
 import { openCommandPalette } from './commands.js';
 import { presentSheet } from './sheet.js';
 import { galleryView } from './views/gallery.js';
+import { notifyIfUpdate } from './updates.js';
 import { searchView } from './views/search.js';
 import { duplicatesView } from './views/duplicates.js';
 import { similarView } from './views/similar.js';
@@ -339,6 +340,7 @@ async function boot() {
   try { state.prefs = { bookmarks: [], ...(await api('/prefs')) }; } catch { /* first run */ }
   state.features = (await api('/features')).values;
   shell();
+  setTimeout(notifyIfUpdate, 1500);
   await poll();
   window.onhashchange = route;
   route();

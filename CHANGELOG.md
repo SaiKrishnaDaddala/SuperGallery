@@ -1,7 +1,18 @@
 # Changelog
 
-## Unreleased
+## 2.5.0 — 2026-10-30
 
+- People: select several people and merge them into one, choosing which name to keep.
+- People: clicking a face opens all of that person's photos in the viewer, and the page updates as soon as a photo is deleted.
+- People: when every photo of a person is deleted, the app says so and offers Recently deleted or Back to People; an old link to that person no longer shows an empty page.
+- People: a named person whose photos are all deleted keeps the name until the recycle bin retention period ends, so restoring the photos brings them back under the same name. Unnamed groups are removed at once, and face data of deleted photos is always removed immediately.
+- Restoring from the recycle bin finds faces again automatically; no manual "Find new faces" is needed.
+- Search shows which person you are viewing, with the number of photos and a link back to them.
+- The selection bar of file lists stays at the bottom of the screen while you scroll.
+- Update notifications: the app checks the public GitHub release twice a day and shows a notice with the release notes and update steps. Turn it off in Settings → Updates or with `UPDATE_CHECK=0`. Optional one-click updates through a Watchtower container (`WATCHTOWER_URL`, `WATCHTOWER_TOKEN`), limited to the SuperGallery container.
+- Phone: after the first message popup, taps on the left half of the screen no longer stop working; messages now sit just above the tab bar.
+- Phone: page titles no longer squeeze into a narrow column next to their buttons.
+- The update notice hides while a selection bar is open, so it never covers Delete.
 - Smaller image: video thumbnails, length and frames use PyAV (FFmpeg libraries in a 35 MB wheel) in a time-limited helper process instead of Debian's ffmpeg package (about 135 MB less to download). The optional Amazon library is only installed with `--build-arg WITH_AWS=1`.
 - Lower memory: AI models unload after 10 idle minutes (`MODEL_IDLE_MINUTES`) and freed memory is returned to the system; each database connection keeps an 8 MB cache and shares one memory-mapped view instead of 64 MB each.
 - Gentler indexing: background work runs at lower CPU priority (`BACKGROUND_NICE`) and photo analysis uses half the cores by default.

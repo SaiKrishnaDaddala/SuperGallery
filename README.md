@@ -130,6 +130,35 @@ docker compose pull && docker compose up -d
 
 On UGREEN, create a project in **Docker → Project** from `compose.yaml` and redeploy it to update. The [installation guide](docs/INSTALL.md) covers UGREEN step by step, certificates and enabling file changes. To build from source instead: `docker compose -f compose.yaml -f compose.build.yaml up -d --build`.
 
+## One-click updates (optional)
+
+SuperGallery tells you when a new version is out (Settings → Updates). By itself it cannot replace its own container,
+because it has no access to Docker, on purpose. To get an **Update** button that installs the new version for you,
+add the maintained [Watchtower](https://github.com/nicholas-fedor/watchtower) container to `compose.yaml`. It only
+acts when you press Update, and only on the `supergallery` container:
+
+```yaml
+services:
+  supergallery:
+    # ...existing settings, plus:
+    environment:
+      WATCHTOWER_URL: "http://watchtower:8080"
+      WATCHTOWER_TOKEN: "${WATCHTOWER_TOKEN:?Set WATCHTOWER_TOKEN in .env}"
+
+  watchtower:
+    image: nickfedor/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_HTTP_API_UPDATE: "true"
+      WATCHTOWER_HTTP_API_PERIODIC_POLLS: "false"
+      WATCHTOWER_HTTP_API_TOKEN: "${WATCHTOWER_TOKEN:?Set WATCHTOWER_TOKEN in .env}"
+```
+
+Put a long random `WATCHTOWER_TOKEN` in `.env` (for example the output of `openssl rand -hex 32`). Do not publish
+Watchtower's port: it has full control of Docker and should only be reachable by SuperGallery on the project network.
+
 ## Tuning for your NAS
 
 These optional environment variables go in `compose.yaml`; the defaults suit a 4–8 core NAS.

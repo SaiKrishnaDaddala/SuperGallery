@@ -294,6 +294,13 @@ def restore(task, trash_ids: list[int]):
     with db.tx() as t:
         t.executemany("DELETE FROM trash WHERE id=?", ok)
     _prune_empty_trash_dirs()
+    if ok:
+        # Restored photos rejoin People and search through the indexes the user already runs.
+        try:
+            from . import intelligence_tasks
+            intelligence_tasks.refresh_enabled()
+        except Exception:  # noqa: BLE001 - the restore itself succeeded
+            pass
     return {"restored": len(ok), "errors": errors[:50], "error_count": len(errors)}
 
 

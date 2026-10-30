@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, StrictBool
 from . import db, jobs
 
-VERSION = '2.4.0'
+VERSION = '2.5.0'
 CATALOG = {
     'photo_search': ('Photo meaning', 'Find activities, objects and places with local visual search.'),
     'video_search': ('Video scenes', 'Search sampled video frames and jump to matching timestamps.'),

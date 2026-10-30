@@ -32,7 +32,7 @@ FACE_WORKERS = max(1, int(os.environ.get("FACE_WORKERS", "2")))
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS people(
  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL,
- prototype BLOB NOT NULL, created REAL NOT NULL);
+ prototype BLOB NOT NULL, created REAL NOT NULL, emptied REAL);
 CREATE TABLE IF NOT EXISTS face_index(
  file_id INTEGER PRIMARY KEY, path TEXT NOT NULL, mtime REAL NOT NULL, size INTEGER NOT NULL,
  state TEXT NOT NULL, updated REAL NOT NULL);
@@ -41,8 +41,15 @@ CREATE TABLE IF NOT EXISTS faces(
  embedding BLOB NOT NULL, crop BLOB NOT NULL, score REAL NOT NULL, ignored INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS ix_faces_person ON faces(person_id, file_id);
 CREATE INDEX IF NOT EXISTS ix_faces_file ON faces(file_id);
-CREATE TRIGGER IF NOT EXISTS remove_deleted_photo_faces AFTER DELETE ON files BEGIN
- DELETE FROM people WHERE id IN (SELECT person_id FROM faces WHERE file_id=OLD.id)
+-- Recreated on every start so existing libraries get the current rule.
+DROP TRIGGER IF EXISTS remove_deleted_photo_faces;
+CREATE TRIGGER remove_deleted_photo_faces AFTER DELETE ON files BEGIN
+ -- Unnamed groups go with their last photo. A named person is only marked empty: their name and one face
+ -- prototype stay while the photos can still be restored from the recycle bin (forget_emptied removes them after
+ -- the retention period), so restored photos rejoin them. Per-photo faces are always removed right away.
+ UPDATE people SET emptied=CAST(strftime('%s','now') AS REAL) WHERE name!='' AND id IN (SELECT person_id FROM faces WHERE file_id=OLD.id)
+   AND NOT EXISTS (SELECT 1 FROM faces WHERE person_id=people.id AND file_id!=OLD.id);
+ DELETE FROM people WHERE name='' AND id IN (SELECT person_id FROM faces WHERE file_id=OLD.id)
    AND NOT EXISTS (SELECT 1 FROM faces WHERE person_id=people.id AND file_id!=OLD.id);
  DELETE FROM faces WHERE file_id=OLD.id;
  DELETE FROM face_index WHERE file_id=OLD.id;
@@ -55,7 +62,20 @@ CREATE VIEW IF NOT EXISTS current_faces AS
 
 
 def init():
-    db.conn().executescript(SCHEMA)
+    c = db.conn()
+    if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='people'").fetchone() and \
+            "emptied" not in {r[1] for r in c.execute("PRAGMA table_info(people)")}:
+        c.execute("ALTER TABLE people ADD COLUMN emptied REAL")
+    c.executescript(SCHEMA)
+
+
+def forget_emptied(days):
+    """Remove named people whose photos have all been gone for longer than the recycle-bin retention."""
+    cutoff = time.time() - days * 86400
+    with _lock, db.tx() as c:
+        n = c.execute("DELETE FROM people WHERE emptied IS NOT NULL AND emptied < ? AND NOT EXISTS "
+                      "(SELECT 1 FROM faces WHERE person_id=people.id)", (cutoff,)).rowcount
+    return n
 
 
 def engine():

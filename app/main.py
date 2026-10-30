@@ -61,6 +61,8 @@ app.include_router(safety_router)
 from .uploads_http import router as uploads_router
 app.include_router(uploads_router)
 app.include_router(features.router)
+from .updates import router as updates_router
+app.include_router(updates_router)
 from .network import router as network_router
 app.include_router(network_router)
 
@@ -140,6 +142,11 @@ def scheduler():
         if time.time() - last_purge > 6 * 3600:
             last_purge = time.time()
             jobs.ops.submit(jobs.Task("purge", f"Purge recycle bin (> {TRASH_RETENTION_DAYS} days)", fileops.purge_old_trash))
+            try:
+                from . import people
+                people.forget_emptied(TRASH_RETENTION_DAYS)
+            except Exception:  # noqa: BLE001 - housekeeping must not stop the scheduler
+                log.exception("forgetting emptied people failed")
         time.sleep(60)
 
 
@@ -148,7 +155,7 @@ def startup():
     from . import backups
     backups.apply_pending()
     from .upgrade import backup
-    backup(CONFIG_DIR, '2.4')
+    backup(CONFIG_DIR, '2.5')
     db.init()
     from . import people, search_index
     people.init()

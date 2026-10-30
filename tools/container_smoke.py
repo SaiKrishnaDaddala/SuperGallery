@@ -29,7 +29,7 @@ else:
 assert request('/api/features')[0]==401
 assert request('/api/setup',{'password':'synthetic-container-test-password'})[0]==200
 status,features=request('/api/features')
-assert status==200 and features['version']=='2.4.0'
+assert status==200 and features['version']=='2.5.0'
 assert request('/api/features',{'values':{'uploads':False,'people':False}},'PUT')[0]==200
 assert request('/api/people')[0]==403
 assert request('/api/upload',{},'POST')[0]==403
