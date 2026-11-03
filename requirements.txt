@@ -14,4 +14,4 @@ onnxruntime==1.31.1
 tokenizers==0.23.3
 rapidocr==3.10.0
 pypdfium2==5.14.0
-av==19.0.1
+av==19.0.2
