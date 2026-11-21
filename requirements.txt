@@ -4,7 +4,7 @@ uvicorn==0.54.0
 python-multipart==0.0.32
 pillow==13.0.0
 pillow-heif==1.8.1
-numpy==2.2.6
+numpy==2.5.4
 pyotp==2.10.0
 qrcode==8.2
 cryptography==50.0.2
