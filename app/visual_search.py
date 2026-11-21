@@ -29,6 +29,8 @@ _lock = threading.RLock()
 _sessions = {}
 _tokenizer = None
 _last_used = 0.0
+_vectors = {}  # media -> the library's vectors while searches are happening (fp16, about 1 KB per photo)
+_generation = 0  # bumped whenever this process writes vectors, so the in-memory copy knows to reload
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS visual_index(file_id INTEGER PRIMARY KEY, path TEXT NOT NULL,
@@ -46,6 +48,8 @@ END;
 
 def init():
     db.conn().executescript(SCHEMA)
+    from . import tags
+    tags.init()
 
 
 def session(kind):
@@ -70,11 +74,45 @@ def release_idle(seconds):
     """Drop the CLIP models and tokenizer after `seconds` without use; they reload on demand."""
     global _tokenizer
     with _lock:
-        if (_sessions or _tokenizer is not None) and time.monotonic() - _last_used > seconds:
+        if (_sessions or _tokenizer is not None or _vectors) and time.monotonic() - _last_used > seconds:
             _sessions.clear()
+            _vectors.clear()
             _tokenizer = None
             return True
     return False
+
+
+def _vector_set(media):
+    """All searchable vectors for one media type, loaded once and reused until the index changes or goes idle."""
+    global _last_used
+    c = db.conn()
+    stamp = tuple(c.execute('SELECT COUNT(*), COALESCE(MAX(id),0) FROM visual_vectors').fetchone()) + (_generation,)
+    with _lock:
+        _last_used = time.monotonic()
+        cached = _vectors.get(media)
+        if cached and cached['stamp'] == stamp:
+            return cached
+    cursor = c.execute('SELECT v.id,v.file_id,v.seconds,v.embedding FROM visual_vectors v JOIN visual_index i ON i.file_id=v.file_id '
+        'JOIN files f ON f.id=i.file_id AND f.path=i.path AND f.mtime=i.mtime AND f.size=i.size '
+        "WHERE i.model=? AND i.state='done' AND f.cat=? ORDER BY v.id", (MODEL, media))
+    ids, files, seconds, blobs = [], [], [], []
+    while batch := cursor.fetchmany(8192):
+        for r in batch:
+            if len(r['embedding']) == 1024:
+                ids.append(r['id']); files.append(r['file_id']); seconds.append(r['seconds']); blobs.append(r['embedding'])
+    built = {'stamp': stamp, 'ids': np.array(ids, dtype=np.int64), 'files': np.array(files, dtype=np.int64),
+             'seconds': np.array(seconds, dtype=np.float32),
+             'matrix': np.frombuffer(b''.join(blobs), dtype='<f2').reshape(-1, 512) if blobs else np.zeros((0, 512), dtype='<f2')}
+    with _lock:
+        _vectors[media] = built
+    return built
+
+
+def _scores(matrix, target):
+    out = np.empty(len(matrix), dtype=np.float32)
+    for start in range(0, len(matrix), 16384):  # bounded float32 copies, not one for the whole library
+        out[start:start + 16384] = matrix[start:start + 16384].astype(np.float32) @ target
+    return out
 
 
 def normalize(vector):
@@ -98,8 +136,13 @@ def image_embedding(image):
         return normalize(session('vision').run(['image_embeds'], {'pixel_values': array.transpose(2, 0, 1)[None]})[0])
 
 
-@lru_cache(maxsize=64)
-def text_embedding(text):
+QUERY_TEMPLATES = ('a photo of {}', 'a picture of {}', '{}')
+FLOOR = .22   # below this a photo is unrelated to the description
+WINDOW = .06  # keep photos this close to the best match, so broad searches still return a useful set
+
+
+def encode_text(text):
+    """One CLIP text vector for exactly this text."""
     global _tokenizer
     with _lock:
         if _tokenizer is None:
@@ -110,11 +153,17 @@ def text_embedding(text):
             _tokenizer = Tokenizer.from_file(str(path))
             _tokenizer.no_truncation()
         # Never silently truncate a description to a different search.
-        tokens = _tokenizer.encode('a photo of ' + text.strip()).ids
+        tokens = _tokenizer.encode(text).ids
         if len(tokens) > 77:
             raise HTTPException(400, 'Use a shorter description, around 50 words or fewer.')
         result = session('text').run(['text_embeds'], {'input_ids': np.array([tokens], dtype='int64')})[0]
         return normalize(result)
+
+
+@lru_cache(maxsize=64)
+def text_embedding(text):
+    """A search description, averaged over a few phrasings so the wording matters less."""
+    return normalize(np.mean([encode_text(t.format(text.strip())) for t in QUERY_TEMPLATES], axis=0))
 
 
 def sample_times(duration):
@@ -132,6 +181,7 @@ def video_frame(path, seconds):
 
 
 def index(task, owners=None, retry=False, media='image'):
+    global _generation
     scope.set_owners(owners)
     try:
         session('vision')
@@ -163,9 +213,9 @@ def index(task, owners=None, retry=False, media='image'):
                         records.append((row['id'], at, vector.astype('<f2').tobytes(), buffer.getvalue()))
                 elif row['ext'] in DECODABLE:
                     with Image.open(path) as source:
-                        source.draft('RGB', (1280, 1280))
+                        source.draft('RGB', (448, 448))  # the model sees 224 px; JPEGs decode far faster at reduced scale
                         image = ImageOps.exif_transpose(source).convert('RGB')
-                        image.thumbnail((1600, 1600))
+                        image.thumbnail((448, 448))
                     records.append((row['id'], 0, image_embedding(image).astype('<f2').tobytes(), None))
                 else:
                     state = 'unsupported'
@@ -186,6 +236,7 @@ def index(task, owners=None, retry=False, media='image'):
                 c.execute('INSERT OR REPLACE INTO visual_index VALUES(?,?,?,?,?,?,?,?,?)',
                     (row['id'], row['path'], row['mtime'], row['size'], MODEL, state, len(records), interval, time.time()))
             samples += len(records)
+            _generation += 1
         task.progress(done=len(rows), total=len(rows), stage='Ready', message=f'{samples:,} views searchable · {errors:,} unreadable files')
         return {'files': len(rows), 'samples': samples, 'errors': errors}
     finally:
@@ -207,36 +258,39 @@ def search(text, filters=None, media='image', limit=60, offset=0):
     if not query or len(query) > 300:
         raise HTTPException(400, 'Describe the scene in 1–300 characters.')
     target = text_embedding(query)
-    where, args = queries.build_where({**(filters or {}), 'cat': [media]})
-    cursor = db.conn().execute('SELECT v.id,v.file_id,v.seconds,v.embedding FROM visual_vectors v JOIN visual_index i ON i.file_id=v.file_id '
-        'JOIN (SELECT id,path,mtime,size FROM files' + where + ') f ON f.id=i.file_id AND f.path=i.path AND f.mtime=i.mtime AND f.size=i.size '
-        "WHERE i.model=? AND i.state='done' ORDER BY v.id", args + [MODEL])
-    # Stream bounded chunks rather than keeping the library's vectors in RAM.
-    best = {}
-    while batch := cursor.fetchmany(1024):
-        valid = [r for r in batch if len(r['embedding']) == 1024]
-        if not valid:
-            continue
-        matrix = np.stack([np.frombuffer(r['embedding'], dtype='<f2') for r in valid]).astype('float32')
-        scores = matrix @ target
-        for row, score in zip(valid, scores):
-            score = float(score)
-            if math.isfinite(score) and score >= .23 and (row['file_id'] not in best or score > best[row['file_id']][0]):
-                best[row['file_id']] = (score, row['id'], row['seconds'])
-    ranked = heapq.nlargest(240, best.items(), key=lambda pair: (pair[1][0], -pair[0]))
+    vs = _vector_set(media)
+    scores = _scores(vs['matrix'], target)
+    hits = np.flatnonzero(np.isfinite(scores) & (scores >= FLOOR))
+    hits = hits[np.argsort(-scores[hits], kind='stable')]
+    # Best view per file (videos have many), in score order.
+    _, first = np.unique(vs['files'][hits], return_index=True)
+    hits = hits[np.sort(first)]
+    # Keep only files the current filters and selected users allow, in rank order, until the result set is full.
+    ranked = []
+    for start in range(0, len(hits), 500):
+        chunk = hits[start:start + 500]
+        where, args = queries.build_where({**(filters or {}), 'cat': [media], 'ids': [int(x) for x in vs['files'][chunk]]})
+        allowed = {r[0] for r in db.conn().execute('SELECT id FROM files' + where, args)}
+        ranked += [(int(vs['files'][k]), (float(scores[k]), int(vs['ids'][k]), float(vs['seconds'][k]))) for k in chunk if int(vs['files'][k]) in allowed]
+        if len(ranked) >= 240:
+            break
+    ranked = ranked[:240]
     # Similarity is a ranking signal, not a probability or verified description.
     if ranked:
-        floor = max(.23, ranked[0][1][0] - .04)
+        floor = max(FLOOR, ranked[0][1][0] - WINDOW)
         ranked = [pair for pair in ranked if pair[1][0] >= floor]
+    page = ranked[offset:offset + limit]
+    # Recheck scope and freshness in one query, in case a file changed while ranking.
+    current = {r['id']: r for r in queries.query({**(filters or {}), 'ids': [fid for fid, _ in page], 'cat': [media]}, limit=max(1, len(page)))['items']} if page else {}
+    fresh = {r[0] for r in db.conn().execute(
+        'SELECT f.id FROM visual_index i JOIN files f ON f.id=i.file_id AND f.path=i.path AND f.mtime=i.mtime AND f.size=i.size '
+        f'WHERE i.model=? AND f.id IN ({",".join("?" * len(page))})', [MODEL] + [fid for fid, _ in page])} if page else set()
     items = []
-    for fid, (score, scene_id, seconds) in ranked[offset:offset + limit]:
-        # Recheck scope/freshness in case a file changed while ranking.
-        rows = queries.query({**(filters or {}), 'ids': [fid], 'cat': [media]}, limit=1)['items']
-        fresh = db.conn().execute('SELECT 1 FROM visual_index i JOIN files f ON f.id=i.file_id AND f.path=i.path AND f.mtime=i.mtime AND f.size=i.size WHERE f.id=? AND i.model=?', (fid, MODEL)).fetchone()
-        if rows and fresh:
-            items.append({**rows[0], 'similarity': round(score, 4), 'scene_id': scene_id if media == 'video' else None, 'start_seconds': seconds})
+    for fid, (score, scene_id, seconds) in page:
+        if fid in current and fid in fresh:
+            items.append({**current[fid], 'similarity': round(score, 4), 'scene_id': scene_id if media == 'video' else None, 'start_seconds': seconds})
     return {'items': items, 'total': len(ranked), 'has_more': offset + limit < len(ranked), 'limit': 240,
-        'status': status(media), 'description': query}
+        'status': queries._cached(f'visual-status:{media}', lambda: status(media), ttl=15), 'description': query}
 
 
 def frame(scene_id):

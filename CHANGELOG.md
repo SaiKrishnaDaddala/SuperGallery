@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.6.0 — 2026-11-21
+
+- New look in the style of Google Photos and Drive: a top bar with a large search box, a shorter sidebar (Home, Photos, Explore, People, Albums, Files; Free up space; More tools), an Upload button, pages on a white sheet, pill buttons, quieter titles and one style for every selection bar, dialog, menu and message. Dark mode follows the same design.
+- Photos: the timeline groups photos by day inside each month, shows each photo at its own shape in rows that fill the width, and lets you select a whole day.
+- Explore: a new page with People, Things and Collections.
+- Things in photos: every photo that photo search has looked at is tagged with what is in it, from a list of more than 120 everyday things (people, pets, food, places, vehicles, documents, receipts…). Browse them in Explore, see them in the viewer's Info panel, and type a thing in search to find its photos. Tags come from the photo-search vectors already stored, so they cost almost no extra time; photos without a clear subject get no tags.
+- Text recognition reads Hindi (Devanagari) and Telugu as well as English: lines the main reader is unsure of are read again with script-specific models (pinned by checksum and bundled in the image). Search readiness offers "Read all again" for photos read by earlier versions.
+- Search: Hindi and Telugu words now match text inside photos and documents (they were split at vowel signs before). A new "Best match" order puts files whose name matches first, then people, folders and words inside, and is the default when you type words.
+- Photo meaning search averages a few phrasings of your description, returns a fuller set of close matches and is about 3× faster: the library's vectors stay in memory while you search and are released after the idle time.
+- File types: open one or more types on their own page, with list or thumbnail view, sorting and Select all; delete-all warns about personal files in the same dialog.
+- File lists: one toolbar above the files with the count, Select all, sort and list/grid (remembered per page), loading placeholders instead of a spinner, and a Try again button when loading fails.
+- Viewer: icon buttons like Google Photos; the Info panel lists the things in the photo.
+- Lighter on the NAS: sign-in checks no longer take a database write lock on every request; the sidebar counts are cached between changes; regrouping similar photos is skipped when no photo changed; photo search decodes photos at the small size its model needs (about 3× less work per photo); thumbnails use at most half the cores.
+- Page titles match the menu (Home, Clean up, Collections, Storage, Recycle bin, Automation, Organize files, Library users) and technical wording was replaced.
+- Recycle bin: shows only the selected user's deleted files. Restore all, Empty recycle bin and the sidebar count now stay inside that user too; before this, Empty recycle bin erased every user's deleted files whichever user was selected.
+- Recycle bin: preview deleted photos and videos by clicking the thumbnail, double-clicking the row, or Preview in the selection bar. Previews are view-only.
+- Double-click opens the preview in Collections, Similar photos, Duplicates and every other file list.
+- Collections: Select all picks every file in the collection.
+- Deleting, erasing, restoring and moving now show their progress, and then the result, in the middle of the screen while the page updates behind it. Keep working hides it and the task finishes in the corner.
+- Selection bars in Recycle bin, Similar photos and Duplicates sit at the bottom of the screen, so the list no longer jumps under the pointer; the recycle bin forgets selected items once they are erased or restored.
+
 ## 2.5.0 — 2026-10-30
 
 - People: select several people and merge them into one, choosing which name to keep.

@@ -306,7 +306,7 @@ def restore(task, trash_ids: list[int]):
 
 def empty_trash(task, trash_ids: list[int] | None = None, older_than_days: float | None = None):
     c = db.conn()
-    if trash_ids:
+    if trash_ids is not None:
         rows = []
         for i in range(0, len(trash_ids), 900):
             part = trash_ids[i:i + 900]

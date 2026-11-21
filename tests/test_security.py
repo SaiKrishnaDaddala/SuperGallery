@@ -209,3 +209,19 @@ def test_http_boundary_and_secure_cookies(store, monkeypatch, tmp_path):
         client.cookies.set(COOKIE, result["session"])
         assert client.get("/api/protected").status_code == 426
         assert client.post("/api/login", json={"password":PASSWORD}).status_code == 426
+
+
+def test_changing_the_stored_password_ends_sessions_at_once(tmp_path):
+    store = Security(tmp_path, "")
+    store.write_password("first-password-for-test")
+    token = store.login("first-password-for-test", "one")["session"]
+    assert store.session(token)
+    store.write_password("second-password-for-test")
+    assert store.session(token) is None
+    assert store.check_password("second-password-for-test") and not store.check_password("first-password-for-test")
+
+
+def test_two_step_setting_is_seen_by_every_check(store):
+    assert store.enabled() is False
+    enroll(store)
+    assert store.enabled() is True

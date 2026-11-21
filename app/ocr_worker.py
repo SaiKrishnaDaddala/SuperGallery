@@ -1,29 +1,72 @@
 """Isolated, offline OCR worker; parent enforces a per-file time limit."""
 import contextlib
 import json
+import os
 import sys
 from pathlib import Path
 
 from PIL import Image, ImageOps
 
 
+READER = 'ppocr6+indic-v1'  # changes when the text reader changes, so older results can be read again
+EXTRA = Path(__file__).resolve().parent.parent / 'models' / 'ocr'
+SCRIPTS = {'devanagari': 'devanagari_PP-OCRv5_rec_mobile.onnx', 'te': 'te_PP-OCRv5_rec_mobile.onnx'}
+KEEP, SURE = .65, .90  # keep a line at this confidence; below SURE, also try the Indian-script readers
+THREADS = {'EngineConfig.onnxruntime.intra_op_num_threads': 2, 'EngineConfig.onnxruntime.inter_op_num_threads': 1, 'Global.log_level': 'error'}
+
+
+class Reader:
+    """The main detector and reader, plus Hindi (Devanagari) and Telugu readers for the lines it is unsure about.
+
+    The main models read Latin and Chinese; Indic lines come out as low-confidence gibberish or are dropped, so
+    those lines alone are read again with the script-specific models and the most confident reading wins."""
+
+    def __init__(self):
+        import rapidocr
+        root = Path(rapidocr.__file__).parent / 'models'
+        names = {'Det': 'PP-OCRv6_det_small.onnx', 'Rec': 'PP-OCRv6_rec_small.onnx', 'Cls': 'ch_ppocr_mobile_v2.0_cls_mobile.onnx'}
+        # Only explicit bundled paths are allowed; missing models never trigger downloads.
+        for name in names.values():
+            if not (root / name).is_file():
+                raise RuntimeError('The bundled OCR model is missing.')
+        self.main = rapidocr.RapidOCR(params={**{key + '.model_path': str(root / name) for key, name in names.items()}, **THREADS,
+            'Global.max_side_len': 2000, 'Global.text_score': .2})
+        self.extra = []
+        wanted = [s.strip() for s in os.environ.get('OCR_EXTRA_SCRIPTS', 'devanagari,te').split(',') if s.strip()]
+        for script in wanted:
+            path = EXTRA / SCRIPTS.get(script, '-')
+            if path.is_file():
+                lang = {'devanagari': rapidocr.LangRec.DEVANAGARI, 'te': rapidocr.LangRec.TE}[script]
+                self.extra.append(rapidocr.RapidOCR(params={**THREADS, 'Rec.model_path': str(path), 'Rec.lang_type': lang,
+                    'Rec.ocr_version': rapidocr.OCRVersion.PPOCRV5}))
+
+    def __call__(self, image):
+        image = image.convert('RGB')
+        result = self.main(image)
+        if result.boxes is None:
+            return []
+        lines = []
+        for box, text, score in zip(result.boxes, result.txts, result.scores):
+            best = (float(score), text)
+            if best[0] < SURE and self.extra:
+                xs, ys = [p[0] for p in box], [p[1] for p in box]
+                crop = image.crop((max(0, int(min(xs)) - 4), max(0, int(min(ys)) - 4), int(max(xs)) + 4, int(max(ys)) + 4))
+                for reader in self.extra:
+                    other = reader(crop, use_det=False, use_cls=False, use_rec=True)
+                    if other.txts and other.txts[0].strip() and float(other.scores[0]) > best[0]:
+                        best = (float(other.scores[0]), other.txts[0])
+            if best[0] >= KEEP and best[1].strip():
+                lines.append(best[1])
+        return lines
+
+
 def engine():
-    import rapidocr
-    root = Path(rapidocr.__file__).parent / 'models'
-    names = {'Det': 'PP-OCRv6_det_small.onnx', 'Rec': 'PP-OCRv6_rec_small.onnx', 'Cls': 'ch_ppocr_mobile_v2.0_cls_mobile.onnx'}
-    # Only explicit bundled paths are allowed; missing models never trigger downloads.
-    for name in names.values():
-        if not (root / name).is_file():
-            raise RuntimeError('The bundled OCR model is missing.')
-    return rapidocr.RapidOCR(params={**{key + '.model_path': str(root / name) for key, name in names.items()},
-        'EngineConfig.onnxruntime.intra_op_num_threads': 2, 'EngineConfig.onnxruntime.inter_op_num_threads': 1,
-        'Global.log_level': 'error', 'Global.max_side_len': 2000, 'Global.text_score': .65})
+    return Reader()
 
 
 def recognize(ocr, image):
     image.thumbnail((2000, 2000))
-    result = ocr(image.convert('RGB'))
-    return '\n'.join(result.txts or [])[:100_000]
+    return '\n'.join(ocr(image))[:100_000]
 
 
 def extract(ocr, path, ext):

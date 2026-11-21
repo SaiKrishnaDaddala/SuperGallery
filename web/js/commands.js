@@ -7,7 +7,7 @@ export function openCommandPalette(groups) {
   const dialog = h(`<dialog class="command-dialog" aria-label="Search and commands"><form method="dialog" class="command-search">${icon('search')}<input aria-label="Find a page or search files" placeholder="Search your library" autocomplete="off"><button class="kbd" aria-label="Close commands">${icon('x')}</button></form><div class="command-results" role="listbox" aria-label="Results"></div><footer>↑ ↓ to navigate <span>↵ to open</span><span>esc to close</span></footer></dialog>`);
   document.body.append(dialog);
   const input = $('input', dialog), results = $('.command-results', dialog);
-  const links = groups.flatMap(([, items]) => items).concat([['trash', 'Recently deleted', 'trash'], ['settings', 'Settings', 'settings']]);
+  const links = groups.flatMap(([, items]) => items).concat([['analytics', 'Storage', 'pie'], ['trash', 'Recycle bin', 'trash'], ['settings', 'Settings', 'settings']]);
   let index = 0, matches = [];
   const select = () => {
     $$('[role="option"]', results).forEach((el, i) => { el.classList.toggle('selected', i === index); el.setAttribute('aria-selected', String(i === index)); });

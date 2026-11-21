@@ -36,6 +36,8 @@ class Security:
         self.clock, self.env_password = clock, env_password
         self.password_file = self.directory / "password.json"
         self.database = self.directory / "security.sqlite3"
+        self._password_cache = (None, None)
+        self._enabled_cache = (None, 0.0, False)
         keyfile = self.directory / "secret.key"
         try:
             with keyfile.open("x") as handle:
@@ -72,15 +74,38 @@ class Security:
         finally:
             c.close()
 
+    @contextmanager
+    def read(self):
+        """A plain read: no write lock, so checking a session never queues behind other requests."""
+        c = sqlite3.connect(self.database, timeout=15)
+        c.row_factory = sqlite3.Row
+        try:
+            yield c
+        finally:
+            c.close()
+
+    @staticmethod
+    def _stamp(path):
+        try:
+            st = os.stat(path)
+        except FileNotFoundError:
+            return None
+        return (st.st_mtime_ns, st.st_size, st.st_ino)
+
     def digest(self, value):
         return hmac.new(self.key, value.encode(), hashlib.sha256).hexdigest()
 
     def password_record(self):
-        try:
-            return json.loads(self.password_file.read_text())
-        except FileNotFoundError:
+        # Re-read only when the file changes (writes replace it, so its inode changes too).
+        stamp = self._stamp(self.password_file)
+        if stamp is None:
             return None
+        if self._password_cache[0] == stamp:
+            return self._password_cache[1]
+        record = json.loads(self.password_file.read_text())
         # Corruption must fail closed, never reopen first-run setup.
+        self._password_cache = (stamp, record)
+        return record
 
     @staticmethod
     def password_hash(password, salt, rounds=600_000):
@@ -126,8 +151,15 @@ class Security:
         c.execute("INSERT INTO settings VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, str(value)))
 
     def enabled(self):
-        with self.tx() as c:
-            return bool(self.get(c, "totp"))
+        # Every request asks; the answer only changes when the database file is written.
+        stamp, now = self._stamp(self.database), time.monotonic()
+        cached_stamp, at, value = self._enabled_cache
+        if stamp is not None and stamp == cached_stamp and now - at < 2:
+            return value
+        with self.read() as c:
+            value = bool(self.get(c, "totp"))
+        self._enabled_cache = (stamp, now, value)
+        return value
 
     def throttle(self, operation, client):
         now = self.clock()
@@ -155,13 +187,14 @@ class Security:
         if not token or len(token) > 256 or not self.configured():
             return None
         now, sid = self.clock(), self.digest(token)
-        with self.tx() as c:
+        with self.read() as c:
             row = c.execute("SELECT * FROM sessions WHERE id=?", (sid,)).fetchone()
             if not row or row["expires"] <= now or row["seen"] <= now - IDLE_TTL or row["created"] > now or row["password_tag"] != self.password_tag() or (self.get(c, "totp") and not row["mfa"]):
                 return None
-            if touch and now - row["seen"] > 60:
+        if touch and now - row["seen"] > 60:
+            with self.tx() as c:
                 c.execute("UPDATE sessions SET seen=? WHERE id=?", (now, sid))
-            return dict(row)
+        return dict(row)
 
     def login(self, password, client):
         self.throttle("password", client)

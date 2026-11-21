@@ -44,6 +44,12 @@ def visual_query(body: Search):
     return {**visual_search.search(phrase,filters,body.media,body.limit,body.offset),'labels':parsed['labels']}
 
 
+@router.get('/tags')
+def tag_list(limit: int = Query(60, ge=1, le=200), min_count: int = Query(1, ge=1)):
+    from . import tags
+    return tags.listing(limit, min_count)
+
+
 @router.get('/visual/status')
 def visual_status(media: Literal['image','video']='image'):
     features.require('video_search' if media == 'video' else 'photo_search')
@@ -64,11 +70,12 @@ def ocr_status():
 class IndexRequest(BaseModel):
     kind: Literal['visual','scenes','ocr','faces','documents']
     retry: bool=False
+    redo: bool=False  # text recognition only: read files again that the previous reader handled
 
 
 @router.post('/intelligence/index')
 def start_intelligence(body: IndexRequest):
-    task=intelligence_tasks.submit(body.kind,scope.owners(),body.retry)
+    task=intelligence_tasks.submit(body.kind,scope.owners(),'redo' if body.redo and body.kind=='ocr' else body.retry)
     return {'task':task.id}
 
 
@@ -77,7 +84,7 @@ class Definition(BaseModel):
     mode: Literal['files','photos','videos']='files'
     q: str=Field('',max_length=500)
     filter: Filters=Field(default_factory=Filters)
-    sort: Literal['ts','name','size']='ts'
+    sort: Literal['ts','name','size','relevance']='ts'
     order: Literal['asc','desc']='desc'
 
 

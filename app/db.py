@@ -122,6 +122,9 @@ def init():
     c.executescript(EXTRA)
     c.create_function("owner_of", 1, scope.owner_of, deterministic=True)
     c.execute("UPDATE files SET owner=owner_of(path) WHERE owner IS NULL")
+    c.execute("UPDATE trash SET owner=owner_of(orig_path) WHERE owner IS NULL")
+    from . import tags
+    tags.init()  # text search and filters can ask about things in photos before photo search has run
     # Photos analysed before categories existed get re-analysed once (adds camera make / colour / category).
     if kv_get("schema") != "2":
         c.execute("UPDATE files SET analyzed=0 WHERE cat='image' AND analyzed=1 AND kind IS NULL")

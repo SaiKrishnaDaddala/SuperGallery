@@ -33,7 +33,7 @@ install_auth(app)
 
 class TextCompression:
     """Gzip the page, scripts, styles and JSON; never photos, videos, downloads or ranged reads."""
-    MEDIA_PATHS = ("/api/raw", "/api/thumb", "/api/zip", "/api/trash/thumb", "/api/faces/", "/api/visual/frame",
+    MEDIA_PATHS = ("/api/raw", "/api/thumb", "/api/zip", "/api/trash/thumb", "/api/trash/raw", "/api/faces/", "/api/visual/frame",
                    "/api/backups/")
     MEDIA_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "video/mp4", "audio/mpeg",
                    "application/zip", "application/pdf", "application/octet-stream")
@@ -99,7 +99,16 @@ def full_index(task, rescan=True):
     queries.invalidate()
     analyzer.analyze_images(task)
     video.analyze_videos(task)
-    sim = similar.compute(task, int(db.kv_get("similar_threshold", similar.DEFAULT_THRESHOLD))) if features.enabled('cleanup') else {'skipped': True}
+    sim = {'skipped': True}
+    if features.enabled('cleanup'):
+        # Comparing every photo with every other is the slowest step; skip it when no photo it looks at changed.
+        threshold = int(db.kv_get("similar_threshold", similar.DEFAULT_THRESHOLD))
+        sig = similar.signature(threshold)
+        if db.kv_get("similar_signature") != sig:
+            sim = similar.compute(task, threshold)
+            db.kv_set("similar_signature", sig)
+        else:
+            sim = {'unchanged': True}
     log.info("similar photos: %s", sim)
     queries.invalidate()
     c = db.conn()
@@ -175,9 +184,13 @@ def startup():
 
 @app.get("/api/status")
 def status():
-    c = db.conn()
-    n = c.execute("SELECT COUNT(*), COALESCE(SUM(size),0) FROM files").fetchone()
-    tr = c.execute("SELECT COUNT(*), COALESCE(SUM(size),0) FROM trash").fetchone()
+    # The browser asks every few seconds; the totals are cached until a file operation or index run changes them.
+    def counts():
+        c = db.conn()
+        w, p = scope.where()
+        return (c.execute("SELECT COUNT(*), COALESCE(SUM(size),0) FROM files").fetchone(),
+                c.execute(f"SELECT COUNT(*), COALESCE(SUM(size),0) FROM trash{w}", p).fetchone())
+    n, tr = queries._cached("status-counts", counts, ttl=30)
     return {"tasks": jobs.history(), "files": n[0], "size": n[1], "trash_count": tr[0], "trash_size": tr[1],
             "last_scan": float(db.kv_get("last_scan", 0) or 0), "roots": SCAN_ROOTS,
             "ffmpeg": bool(thumbs.VIDEO), "auth": True, "env_password": bool(APP_PASSWORD),
@@ -459,6 +472,9 @@ def info(path: str, hash: bool = False):
     r = c.execute("SELECT id, hash, width, height, ts, blur, bright FROM files WHERE path=?", (rp,)).fetchone()
     if r:
         out.update(id=r[0], hash=r[1], width=r[2], height=r[3], taken=r[4], sharpness=r[5], brightness=r[6])
+        if features.enabled('photo_search'):
+            from . import tags
+            out["tags"] = tags.labels_for(r[0])
         if r[1]:
             out["copies"] = [x[0] for x in c.execute("SELECT path FROM files WHERE hash=? AND id<>?", (r[1], r[0]))]
     if hash and not out.get("hash"):
@@ -478,10 +494,14 @@ def _path_for(file_id: int | None, path: str | None) -> str:
         err(e)
 
 
+def _thumb_size(s: int) -> int:
+    return 256 if s <= 256 else 512 if s <= 512 else 1600 if s <= 1600 else 2560
+
+
 @app.get("/api/thumb")
 def thumb(path: str | None = None, id: int | None = None, s: int = 256):
     rp = _path_for(id, path)
-    s = 256 if s <= 256 else 512 if s <= 512 else 1600 if s <= 1600 else 2560
+    s = _thumb_size(s)
     out = thumbs.render(rp, scanner.split_ext(pp.basename(rp)), s)
     if not out:
         raise HTTPException(415, "no preview")
@@ -490,13 +510,16 @@ def thumb(path: str | None = None, id: int | None = None, s: int = 256):
 
 @app.get("/api/raw")
 def raw(path: str | None = None, id: int | None = None, download: bool = False):
-    rp = _path_for(id, path)
+    return _send_file(_path_for(id, path), download)
+
+
+def _send_file(rp: str, download: bool, name: str | None = None):
     if not os.path.isfile(rp):
         raise HTTPException(404)
     mt = mimetypes.guess_type(rp)[0] or "application/octet-stream"
     inline_types = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "application/pdf"}
     download = download or not (mt in inline_types or mt.startswith(("video/", "audio/")))
-    return FileResponse(rp, media_type=mt, filename=pp.basename(rp),
+    return FileResponse(rp, media_type=mt, filename=name or pp.basename(rp),
                         content_disposition_type="attachment" if download else "inline",
                         headers={"Content-Security-Policy": "sandbox; default-src 'none'; frame-ancestors 'self'"})
 
@@ -693,18 +716,26 @@ def organize_run(body: dict = Body(...)):
 @app.get("/api/trash")
 def trash(limit: int = 500, offset: int = 0, q: str = ""):
     c = db.conn()
-    w, p = ("", [])
-    if q:
-        w, p = " WHERE lower(orig_path) LIKE ?", [f"%{q.lower()}%"]
+    w, p = scope.where(extra="lower(orig_path) LIKE ?", params=[f"%{q.lower()}%"]) if q else scope.where()
     tot = c.execute(f"SELECT COUNT(*), COALESCE(SUM(size),0) FROM trash{w}", p).fetchone()
     rows = [dict(r) for r in c.execute(f"SELECT * FROM trash{w} ORDER BY deleted_at DESC, id LIMIT ? OFFSET ?",
                                        p + [limit, offset])]
     return {"total": tot[0], "total_size": tot[1], "items": rows, "retention_days": TRASH_RETENTION_DAYS}
 
 
+def _bin_ids(ids: list[int] | None = None) -> list[int]:
+    """Recycle-bin entries of the selected users; `ids` narrows them to the ones picked on screen."""
+    w, p = scope.where()
+    mine = [r[0] for r in db.conn().execute(f"SELECT id FROM trash{w}", p)]
+    if ids is None:
+        return mine
+    keep = set(mine)
+    return [i for i in ids if i in keep]
+
+
 @app.post("/api/trash/restore")
 def trash_restore(body: dict = Body(...)):
-    ids = body.get("ids") or [r[0] for r in db.conn().execute("SELECT id FROM trash")]
+    ids = _bin_ids(body.get("ids"))
     return submit_op(f"Restore {len(ids):,} items", fileops.restore, ids, reindex=True)
 
 
@@ -712,7 +743,7 @@ def trash_restore(body: dict = Body(...)):
 def trash_empty(body: dict = Body(default={})):
     ids = body.get("ids")
     return submit_op("Empty recycle bin" if not ids else f"Permanently delete {len(ids):,} items",
-                     fileops.empty_trash, ids)
+                     fileops.empty_trash, _bin_ids(ids))
 
 
 @app.get("/api/trash/thumb/{tid}")
@@ -721,10 +752,18 @@ def trash_thumb(tid: int, s: int = 256):
     if not r:
         raise HTTPException(404)
     ext = scanner.split_ext(pp.basename(r[0]))
-    out = thumbs.render(r[0], ext, 256) if ext in DECODABLE or ext in VIDEO_THUMB else None
+    out = thumbs.render(r[0], ext, _thumb_size(s)) if ext in DECODABLE or ext in VIDEO_THUMB else None
     if not out:
         raise HTTPException(415)
     return FileResponse(out, media_type="image/webp")
+
+
+@app.get("/api/trash/raw/{tid}")
+def trash_raw(tid: int, download: bool = False):
+    r = db.conn().execute("SELECT trash_path, orig_path FROM trash WHERE id=?", (tid,)).fetchone()
+    if not r:
+        raise HTTPException(404)
+    return _send_file(r[0], download, pp.basename(r[1]))
 
 
 # ---------------------------------------------------------------- bookmarks / prefs

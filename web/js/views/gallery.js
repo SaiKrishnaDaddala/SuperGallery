@@ -1,4 +1,4 @@
-// Timeline photo & video gallery with month sections, year scrubber, multi-select and lightbox.
+// Timeline of photos and videos: month and day sections, photos at their own shape, year scrubber, multi-select and lightbox.
 import { $, $$, api, bytes, confirmDelete, dur, esc, fail, h, icon, num, pickFolder, runTask, shortPath, thumbUrl } from '../core.js';
 import { lightbox } from '../lightbox.js';
 
@@ -25,6 +25,20 @@ export function galleryView(root, params) {
   const rememberLocation = () => { const query = new URLSearchParams(); if (st.kind !== 'all') query.set('kind',st.kind); if (st.dir) query.set('dir',st.dir); history.replaceState(null,'','#/gallery' + (query.size ? '?' + query : '')); };
   const monthKey = (ts) => { const d = new Date(ts * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
   const monthLabel = (k) => { const [y, m] = k.split('-'); return new Date(+y, +m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }); };
+  const dayKey = (ts) => { const d = new Date(ts * 1000); return `${monthKey(ts)}-${String(d.getDate()).padStart(2, '0')}`; };
+  const dayLabel = (ts) => {
+    const d = new Date(ts * 1000), today = new Date(), yesterday = new Date(today - 864e5);
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', ...(d.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}) });
+  };
+  const ratio = (it) => (it.width && it.height ? Math.min(3, Math.max(0.33, it.width / it.height)) : 1);
+  const toggleGroup = (match) => {
+    const group = st.items.filter(match);
+    const allOn = group.every((x) => st.sel.has(x.id));
+    group.forEach((x) => (allOn ? st.sel.delete(x.id) : st.sel.set(x.id, x)));
+    refreshSel();
+  };
 
   async function reset() {
     const version = ++generation;
@@ -74,24 +88,30 @@ export function galleryView(root, params) {
       const k = monthKey(it.ts);
       let sec = scroll.querySelector(`.gal-month[data-m="${k}"]`);
       if (!sec) {
-        sec = h(`<section class="gal-month" data-m="${k}"><h4><span>${monthLabel(k)}</span><button class="btn sm ghost selm">${icon('selectAll')}Select month</button></h4><div class="gal-grid"></div></section>`);
-        $('.selm', sec).onclick = () => {
-          const idx = st.items.map((x, j) => [x, j]).filter(([x]) => monthKey(x.ts) === k);
-          const allOn = idx.every(([x]) => st.sel.has(x.id));
-          idx.forEach(([x]) => (allOn ? st.sel.delete(x.id) : st.sel.set(x.id, x)));
-          refreshSel();
-        };
+        sec = h(`<section class="gal-month" data-m="${k}"><h2><span>${monthLabel(k)}</span><button class="btn sm ghost selm">${icon('selectAll')}Select month</button></h2></section>`);
+        $('.selm', sec).onclick = () => toggleGroup((x) => monthKey(x.ts) === k);
         scroll.append(sec);
       }
-      const t = h(`<div class="gtile${st.sel.has(it.id) ? ' sel' : ''}" data-i="${i}" role="button" tabindex="0" aria-label="${esc(it.name)}" aria-pressed="${st.sel.has(it.id)}"><img loading="lazy" src="${thumbUrl(it)}" alt="">
+      const dk = dayKey(it.ts);
+      let day = sec.querySelector(`.gal-day[data-d="${dk}"]`);
+      if (!day) {
+        day = h(`<div class="gal-day" data-d="${dk}"><h3><button class="seld" aria-label="Select all photos from ${esc(dayLabel(it.ts))}" title="Select this day">${icon('check')}</button><span>${esc(dayLabel(it.ts))}</span></h3><div class="gal-grid"></div></div>`);
+        $('.seld', day).onclick = () => toggleGroup((x) => dayKey(x.ts) === dk);
+        sec.append(day);
+      }
+      const t = h(`<div class="gtile${st.sel.has(it.id) ? ' sel' : ''}" data-i="${i}" role="button" tabindex="0" aria-label="${esc(it.name)}" aria-pressed="${st.sel.has(it.id)}" style="--ar:${ratio(it).toFixed(3)}"><img loading="lazy" src="${thumbUrl(it, st.tile > 220 ? 512 : 256)}" alt="">
         <div class="ck">${icon('check')}</div>${it.cat === 'video' ? `<span class="vid">${icon('play')}${it.duration ? dur(it.duration) : bytes(it.size, 0)}</span>` : ''}</div>`);
-      $('img', t).onerror = function () { this.replaceWith(h(`<div class="empty" style="padding:30% 0;font-size:11px">${esc(it.ext.toUpperCase())}</div>`)); };
-      $('.gal-grid', sec).append(t);
+      const img = $('img', t);
+      // Stored sizes can ignore camera rotation; the thumbnail is upright, so trust its shape once it loads.
+      img.onload = () => { if (img.naturalWidth && img.naturalHeight) t.style.setProperty('--ar', Math.min(3, Math.max(0.33, img.naturalWidth / img.naturalHeight)).toFixed(3)); };
+      img.onerror = () => img.replaceWith(h(`<div class="noprev">${esc(it.ext.toUpperCase())}</div>`));
+      $('.gal-grid', day).append(t);
     }
   }
 
   function refreshSel() {
     $$('.gtile', scroll).forEach((t) => { const selected = st.sel.has(st.items[+t.dataset.i].id); t.classList.toggle('sel',selected); t.setAttribute('aria-pressed',String(selected)); });
+    $$('.gal-day', scroll).forEach((d) => { const ids = $$('.gtile', d).map((t) => st.items[+t.dataset.i].id); d.classList.toggle('all-sel', ids.length > 0 && ids.every((id) => st.sel.has(id))); });
     scroll.classList.toggle('selecting', st.selecting || st.sel.size > 0);
     $('.select-mode',el).textContent = st.selecting ? 'Done' : 'Select';
     $('.select-mode',el).setAttribute('aria-pressed',String(st.selecting));

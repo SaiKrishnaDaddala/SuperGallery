@@ -9,16 +9,25 @@ const ROW = 38;
 const PAGE = 400;
 const COLS = '34px minmax(220px,2fr) minmax(160px,1.4fr) 110px 150px';
 
-export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 'list', height = null, guard = null, empty = 'No files match' } = {}) {
-  const st = { filter, sort, order, mode, total: 0, totalSize: 0, pages: new Map(), loading: new Set(), sel: new Map(), all: false, excl: new Map(), anchor: -1, gen: 0 };
+const SORTS = [['size:desc', 'Largest first'], ['size:asc', 'Smallest first'], ['ts:desc', 'Newest first'], ['ts:asc', 'Oldest first'],
+  ['name:asc', 'Name A–Z'], ['name:desc', 'Name Z–A'], ['dir:asc', 'Folder']];
+const savedMode = (id) => { try { return id && localStorage.getItem('sg-view:' + id); } catch { return null; } };
+
+/** id: remembers the list/grid choice for this kind of page across visits. */
+export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 'list', height = null, guard = null, empty = 'No files match', id = '' } = {}) {
+  const st = { filter, sort, order, mode: savedMode(id) || mode, total: 0, totalSize: 0, pages: new Map(), loading: new Set(), sel: new Map(), all: false, excl: new Map(), anchor: -1, gen: 0 };
   const el = h(`<div class="panel-list" style="${height ? `height:${height}` : 'flex:1;min-height:320px'}">
+    <div class="list-bar"><span class="lb-count" aria-live="polite"></span><span class="grow"></span>
+      <button class="btn sm ghost lb-all">${icon('selectAll')}<span>Select all</span></button>
+      <select class="input sm lb-sort" aria-label="Sort files"></select>
+      <div class="seg" role="group" aria-label="View"><button data-m="list" aria-label="List view" title="List">${icon('list')}</button><button data-m="grid" aria-label="Thumbnail view" title="Thumbnails">${icon('grid')}</button></div></div>
     <div class="selbar-slot"></div>
     <div class="vl" tabindex="0"><div class="vl-head" style="grid-template-columns:${COLS}">
       <div><input type="checkbox" class="ck-all" title="Select all matching" aria-label="Select all matching files"></div>
       <div data-k="name">Name</div><div data-k="dir">Folder</div><div data-k="size" style="justify-content:flex-end">Size</div><div data-k="ts">Date</div></div>
-      <div class="vl-inner"></div></div>
-    <div class="status"></div></div>`);
+      <div class="vl-inner"></div></div></div>`);
   const vl = $('.vl', el), inner = $('.vl-inner', el), head = $('.vl-head', el);
+  const skeleton = () => `<div class="list-skel ${st.mode}" aria-label="Loading">${'<div></div>'.repeat(st.mode === 'grid' ? 12 : 9)}</div>`;
 
   const isSel = (it) => (st.all ? !st.excl.has(it.id) : st.sel.has(it.id));
   const selCount = () => (st.all ? st.total - st.excl.size : st.sel.size);
@@ -39,7 +48,12 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
       st.total = r.total; st.totalSize = r.total_size;
       st.pages.set(p, r.items);
       paint(); status();
-    } catch (e) { if (gen === st.gen) { fail(e); inner.innerHTML = '<div class="empty">Couldn’t load results. Change a filter or try again.</div>'; } } finally { st.loading.delete(key); }
+    } catch (e) {
+      if (gen !== st.gen) return;
+      inner.style.height = 'auto';
+      inner.innerHTML = `<div class="empty">${icon('alert')}<div>Couldn’t load these files.</div><div class="muted small">${esc(e.message)}</div><button class="btn sm retry">${icon('refresh')}Try again</button></div>`;
+      $('.retry', inner).onclick = () => api_.reload();
+    } finally { st.loading.delete(key); }
   }
 
   function geometry() {
@@ -78,7 +92,7 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
       } else {
         const th = THUMBABLE.has(it.ext) ? `<img loading="lazy" alt="" src="${thumbUrl(it)}" data-fallback="collapse">` : fileIcon(it, true);
         html.push(`<div class="tile${s}" data-i="${i}" style="top:${g.top + r * g.rh}px;left:${8 + c * (g.tw + 8)}px;width:${g.tw}px;height:${g.rh - 8}px">
-          <div class="ck">${icon('check')}</div><div class="th">${th}${it.duration ? `<span class="vid" style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.5);color:#fff;border-radius:7px;padding:1px 6px;font-size:11px">${dur(it.duration)}</span>` : ''}</div><div class="nm">${esc(it.name)}</div><div class="meta">${bytes(it.size)}${it.width && it.cat === 'video' ? ` · ${it.height >= 2000 || it.width >= 3800 ? '4K' : it.height >= 1000 || it.width >= 1900 ? 'HD' : 'SD'}` : ''}</div></div>`);
+          <div class="ck">${icon('check')}</div><div class="th">${th}${it.duration ? `<span class="vid">${dur(it.duration)}</span>` : ''}</div><div class="nm">${esc(it.name)}</div><div class="meta">${bytes(it.size)}${it.width && it.cat === 'video' ? ` · ${it.height >= 2000 || it.width >= 3800 ? '4K' : it.height >= 1000 || it.width >= 1900 ? 'HD' : 'SD'}` : ''}</div></div>`);
       }
     }
     inner.innerHTML = html.join('');
@@ -86,12 +100,19 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
   }
 
   function status() {
-    const n = selCount();
-    $('.ck-all', el).checked = st.all && !st.excl.size;
-    $('.ck-all', el).indeterminate = n > 0 && !(st.all && !st.excl.size);
-    $('.status', el).innerHTML = `<span><b style="color:var(--text)">${num(st.total)}</b> files · ${bytes(st.totalSize)}</span>${n ? `<span style="color:var(--text)">${num(n)} selected · ${bytes(selSize())}</span>` : ''}
-      <span class="grow"></span><div class="seg" style="transform:scale(.85);transform-origin:right"><button data-m="list" aria-label="List view" class="${st.mode === 'list' ? 'on' : ''}">${icon('list')}</button><button data-m="grid" aria-label="Thumbnail view" class="${st.mode === 'grid' ? 'on' : ''}">${icon('grid')}</button></div>`;
-    $$('.status .seg button', el).forEach((b) => (b.onclick = () => { st.mode = b.dataset.m; vl.scrollTop = 0; paint(); status(); }));
+    const n = selCount(), everything = st.all && !st.excl.size && st.total > 0;
+    $('.ck-all', el).checked = everything;
+    $('.ck-all', el).indeterminate = n > 0 && !everything;
+    $('.lb-count', el).innerHTML = st.pages.size ? `<b>${num(st.total)}</b> ${st.total === 1 ? 'file' : 'files'} · ${bytes(st.totalSize)}` : '';
+    const all = $('.lb-all', el);
+    all.disabled = !st.total;
+    $('span', all).textContent = everything ? 'Clear selection' : 'Select all';
+    all.setAttribute('aria-label', $('span', all).textContent); // the text is hidden on phones
+    const sorts = st.filter.text ? [['relevance:desc', 'Best match'], ...SORTS] : SORTS, sel = $('.lb-sort', el);
+    if (sel.options.length !== sorts.length) sel.innerHTML = sorts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    sel.value = `${st.sort}:${st.order}`;
+    if (sel.selectedIndex < 0) sel.value = 'size:desc';
+    $$('.list-bar .seg button', el).forEach((b) => { b.classList.toggle('on', b.dataset.m === st.mode); b.setAttribute('aria-pressed', b.dataset.m === st.mode); });
     const slot = $('.selbar-slot', el);
     if (!n) { slot.innerHTML = ''; return; }
     placeBar();
@@ -148,17 +169,21 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
 
   inner.addEventListener('mousedown', (ev) => {
     const r = ev.target.closest('[data-i]');
-    if (r) { ev.preventDefault(); toggle(+r.dataset.i, ev); }
-  });
-  inner.addEventListener('dblclick', (ev) => {
-    const r = ev.target.closest('[data-i]');
     if (!r) return;
-    const i = +r.dataset.i, it = at(i);
+    ev.preventDefault();
+    const i = +r.dataset.i;
+    toggle(i, ev);
+    // Selecting repaints the rows and removes the one being pressed, so the browser never sends dblclick here.
+    if (ev.detail === 2 && ev.button === 0 && !ev.shiftKey) open(i);
+  });
+  function open(i) {
+    const it = at(i);
+    if (!it) return;
     if (['image', 'video', 'audio'].includes(it.cat) || it.ext === 'pdf') {
       const page = st.pages.get(Math.floor(i / PAGE)).filter((x) => ['image', 'video', 'audio'].includes(x.cat) || x.ext === 'pdf');
       lightbox(page, page.indexOf(it), { onDeleted: () => api_.reload() });
     } else location.hash = '#/files?path=' + encodeURIComponent(dirname(it.path));
-  });
+  }
   inner.addEventListener('contextmenu', (ev) => {
     const r = ev.target.closest('[data-i]');
     if (!r) return;
@@ -180,6 +205,13 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
     if (e.key === 'Escape') api_.clear();
   });
   $('.ck-all', el).onchange = (e) => { if (e.target.checked) { st.all = true; st.excl.clear(); st.sel.clear(); } else api_.clear(); paint(); status(); };
+  $('.lb-all', el).onclick = () => (st.all && !st.excl.size ? api_.clear() : api_.selectAll());
+  $('.lb-sort', el).onchange = (e) => { [st.sort, st.order] = e.target.value.split(':'); api_.reload(); };
+  $$('.list-bar .seg button', el).forEach((b) => (b.onclick = () => {
+    st.mode = b.dataset.m;
+    try { if (id) localStorage.setItem('sg-view:' + id, st.mode); } catch { /* private mode */ }
+    vl.scrollTop = 0; paint(); status();
+  }));
   $$('[data-k]', head).forEach((d) => (d.onclick = () => {
     const k = d.dataset.k;
     if (st.sort === k) st.order = st.order === 'asc' ? 'desc' : 'asc'; else { st.sort = k; st.order = k === 'name' || k === 'dir' ? 'asc' : 'desc'; }
@@ -194,31 +226,35 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
 
   // The selection bar floats at the bottom of the screen over the list, so it is always reachable.
   function placeBar() {
-    const slot = $('.selbar-slot', el), box = el.getBoundingClientRect(), tabbar = document.querySelector('.tabbar');
-    const tab = tabbar && getComputedStyle(tabbar).display !== 'none' ? tabbar.getBoundingClientRect().height : 0;
+    const slot = $('.selbar-slot', el), box = el.getBoundingClientRect(), tabs = document.querySelector('.mobile-tabs');
+    const tabTop = tabs && getComputedStyle(tabs).display !== 'none' ? tabs.getBoundingClientRect().top : innerHeight;
     slot.style.left = Math.max(8, box.left + 8) + 'px';
     slot.style.width = Math.max(240, Math.min(box.width, innerWidth - 16) - 16) + 'px';
-    slot.style.bottom = (16 + tab) + 'px';
+    slot.style.bottom = (innerHeight - tabTop + 16) + 'px';
   }
-  addEventListener('resize', () => { if ($('.selbar-slot', el)?.innerHTML) placeBar(); });
+  const onResize = () => { if ($('.selbar-slot', el)?.innerHTML) placeBar(); };
+  addEventListener('resize', onResize);
 
   const api_ = {
     el,
-    destroy() { st.gen++; resizeObserver.disconnect(); },
+    destroy() { st.gen++; resizeObserver.disconnect(); removeEventListener('resize', onResize); },
     get state() { return st; },
     setFilter(f, sort, order) { st.filter = f; if (sort) st.sort = sort; if (order) st.order = order; this.clear(false); this.reload(); },
     reload() {
       st.gen++; st.pages.clear(); st.total = 0; st.totalSize = 0;
       vl.scrollTop = 0; markSort();
-      inner.innerHTML = '<div class="empty"><div class="spin" style="margin:0 auto"></div></div>';
+      inner.style.height = 'auto';
+      inner.innerHTML = skeleton();
+      status();
       fetchPage(0);
     },
     clear(repaint = true) { st.all = false; st.sel.clear(); st.excl.clear(); if (repaint) { paint(); status(); } },
-    async deleteSelected() {
+    /** extra: HTML shown in the delete dialog, e.g. a warning about personal files. */
+    async deleteSelected(extra) {
       const n = selCount();
       if (!n) return;
       const payload = st.all && !st.excl.size ? { filter: st.filter } : { ids: await selectedIds() };
-      const t = await confirmDelete({ ...payload, count: n, size: selSize(), guard });
+      const t = await confirmDelete({ ...payload, count: n, size: selSize(), guard, extra });
       if (t) { this.clear(false); this.reload(); }
       return t;
     },

@@ -54,6 +54,10 @@ def build_where(f: dict) -> tuple[str, list]:
     if f.get("owner"):
         w.append("owner=?")
         p.append(str(f["owner"]))
+    if f.get("tag"):
+        features.require('photo_search')
+        w.append("id IN (SELECT file_id FROM photo_tags WHERE label=?)")
+        p.append(str(f["tag"]).lower())
     if f.get("person_id"):
         features.require('people')
         w.append("id IN (SELECT file_id FROM current_faces WHERE person_id=? AND ignored=0)")
@@ -138,10 +142,13 @@ def query(f: dict, sort="size", order="desc", limit=200, offset=0) -> dict:
     c = db.conn()
     where, p = build_where(f)
     agg = c.execute(f"SELECT COUNT(*), COALESCE(SUM(size),0) FROM files{where}", p).fetchone()
-    col = SORTS.get(sort, "size")
-    od = "ASC" if order == "asc" else "DESC"
-    rows = c.execute(f"SELECT {ITEM_COLS} FROM files{where} ORDER BY {col} {od}, id LIMIT ? OFFSET ?",
-                     p + [int(limit), int(offset)]).fetchall()
+    if sort == "relevance" and f.get("text"):
+        from .search_index import relevance_order
+        ob, op = relevance_order(f["text"])
+    else:
+        ob, op = f'{SORTS.get(sort, "size")} {"ASC" if order == "asc" else "DESC"}', []
+    rows = c.execute(f"SELECT {ITEM_COLS} FROM files{where} ORDER BY {ob}, id LIMIT ? OFFSET ?",
+                     p + op + [int(limit), int(offset)]).fetchall()
     return {"total": agg[0], "total_size": agg[1], "items": [item(r) for r in rows]}
 
 

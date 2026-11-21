@@ -8,7 +8,7 @@ const PATTERNS = [
 
 export function organizeView(root) {
   const st = { src: '', dest: '', cats: new Set(['image', 'video']), pattern: '{yyyy}/{mm}' };
-  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Auto-organize</h1>
+  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Organize files</h1>
     <p>Sort a messy folder (camera uploads, Downloads, phone backups) into a clean structure by date or type. Preview first, nothing moves until you confirm.</p></div></div>
     <div class="grid g2"><div class="card col" style="gap:14px">
       <div><div class="muted" style="margin-bottom:6px">1 · Take files from</div><button class="btn src">${icon('folder')}<span>Choose folder…</span></button></div>
@@ -18,7 +18,7 @@ export function organizeView(root) {
         <label class="chk"><input type="radio" name="pat" value="custom"><input class="input sm custom" placeholder="custom: {yyyy}/{mm}-{dd}" style="width:220px"></label></div></div>
       <div class="row"><button class="btn prev">${icon('eye')}Preview</button><button class="btn primary run" disabled>${icon('wand')}Organize now</button></div>
       <div class="notice info">${icon('info')}<div>Dates come from the photo's EXIF "taken" time when available, otherwise the file's modified date. Name clashes get a (1) suffix — nothing is overwritten.</div></div>
-    </div><div class="card"><h3>${icon('list')}Preview<span class="right muted cnt"></span></h3><div class="pv muted">Choose a source and destination, then press Preview.</div></div></div></div>`);
+    </div><div class="card"><h2>${icon('list')}Preview<span class="right muted cnt"></span></h2><div class="pv muted">Choose a source and destination, then press Preview.</div></div></div></div>`);
   root.append(el);
   const pat = () => { const v = $('input[name=pat]:checked', el).value; return v === 'custom' ? $('.custom', el).value.trim() || '{yyyy}' : v; };
   const filter = () => ({ dir: st.src, cat: [...st.cats] });

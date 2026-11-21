@@ -9,7 +9,7 @@ export function peopleView(root, params) {
   let alive = true, version = 0, offset = 0, searchTimer, statusTimer, current, capability = false, selecting = false;
   const picked = new Map();
   const pid = Number(params.get('id')) || null;
-  const el = h(`<div class="view people-view"><div class="page-head"><div class="grow"><div class="eyebrow">YOUR PHOTO LIBRARY</div><h1>People</h1><p>Familiar faces. All in one place.</p></div><button class="btn index-people">${icon('sparkles')}Find people</button></div>
+  const el = h(`<div class="view people-view"><div class="page-head"><div class="grow"><h1>People</h1><p>Familiar faces. All in one place.</p></div><button class="btn index-people">${icon('sparkles')}Find people</button></div>
     <div class="people-progress" aria-live="polite"></div><div class="people-toolbar"><div class="search-box">${icon('search')}<input class="find-person" aria-label="Find a person" placeholder="Find someone by name"></div><button class="btn select-people">${icon('selectAll')}Select</button><button class="btn ghost privacy">${icon('lock')}On your NAS</button></div><div class="people-content"><div class="empty"><div class="spin"></div></div></div><div class="people-selbar" hidden></div></div>`);
   root.append(el);
 
@@ -62,7 +62,7 @@ export function peopleView(root, params) {
     if (!person.total) {
       $('h1', el).textContent = person.name || 'Unnamed person';
       $('.page-head p', el).textContent = 'No photos right now.';
-      host.innerHTML = `<a class="back-link" href="#/people">${icon('left')}All people</a><div class="people-empty"><div class="people-empty-icon">${icon('users')}</div><h2>No photos of this person are left</h2><p>They were deleted or moved to someone else. If that was a mistake, restore them from Recently deleted and they will appear here again.</p><div class="row" style="justify-content:center;gap:10px"><a class="btn" href="#/trash">Recently deleted</a><a class="btn primary" href="#/people">Back to People</a></div></div>`;
+      host.innerHTML = `<a class="back-link" href="#/people">${icon('left')}All people</a><div class="people-empty"><div class="people-empty-icon">${icon('users')}</div><h2>No photos of this person are left</h2><p>They were deleted or moved to someone else. If that was a mistake, restore them from the Recycle bin and they will appear here again.</p><div class="row" style="justify-content:center;gap:10px"><a class="btn" href="#/trash">Recycle bin</a><a class="btn primary" href="#/people">Back to People</a></div></div>`;
       return;
     }
     $('h1', el).textContent = person.name || 'Unnamed person';

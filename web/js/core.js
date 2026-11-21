@@ -3,6 +3,9 @@
 // ---------------------------------------------------------------- icons (Lucide-style paths)
 const P = {
   lock: '<rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3"/>',
+  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+  compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
   dashboard: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>',
   folderOpen: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
@@ -351,7 +354,48 @@ export async function runTask(p, { silent = false } = {}) {
   let r;
   try { r = await p; } catch (e) { fail(e); return null; }
   if (!r?.task) return r;
-  return new Promise((resolve) => { waiters.set(r.task, { resolve, silent }); poll(true); });
+  return new Promise((resolve) => {
+    const w = { resolve, silent };
+    if (!silent) w.timer = setTimeout(() => { w.card = taskCard(); poll(true); }, 700);
+    waiters.set(r.task, w);
+    poll(true);
+  });
+}
+
+// Work started from a button shows its progress and then its result in the middle of the screen, so the page never
+// looks like nothing happened. It appears only if the task is still running after a moment, so quick actions don't
+// flash. "Keep working" hides it; the task carries on in the corner and ends with the usual message.
+function taskCard() {
+  const el = h(`<dialog class="modal-bg task-card" aria-label="Working"><div class="modal" role="status" aria-live="polite">
+    <div class="modal-b"><div class="tc-head"><span class="tc-ic"><span class="spin"></span></span><span class="tc-label">Working…</span></div>
+    <div class="progress indet"><div></div></div><div class="tc-detail muted"></div></div>
+    <div class="modal-f"><button class="btn tc-hide">Keep working</button></div></div></dialog>`);
+  const card = { hidden: false };
+  const close = () => { if (el.open) el.close(); el.remove(); };
+  const hide = () => { card.hidden = true; close(); };
+  $('.tc-hide', el).onclick = hide;
+  el.addEventListener('cancel', (e) => { e.preventDefault(); hide(); });
+  card.update = (t) => {
+    $('.tc-label', el).textContent = t.stage || t.label;
+    const bar = $('.progress', el);
+    bar.classList.toggle('indet', !t.total);
+    if (t.total) bar.firstElementChild.style.width = Math.floor((100 * t.done) / t.total) + '%';
+    $('.tc-detail', el).textContent = t.total ? `${num(t.done)} of ${num(t.total)}` : '';
+  };
+  card.finish = (t, [msg, kind]) => {
+    $('.tc-ic', el).innerHTML = icon(kind === 'err' ? 'alert' : 'check');
+    $('.tc-ic', el).className = `tc-ic ${kind}`;
+    $('.tc-label', el).innerHTML = msg;
+    $('.progress', el).remove();
+    $('.tc-detail', el).remove();
+    $('.tc-hide', el).textContent = 'Close';
+    $('.tc-hide', el).onclick = close;
+    if (kind !== 'err') setTimeout(close, 1600);
+  };
+  document.body.append(el);
+  el.showModal();
+  $('.tc-hide', el).focus();
+  return card;
 }
 export async function poll(soon = false) {
   const generation = pollGeneration;
@@ -370,19 +414,22 @@ export async function poll(soon = false) {
       const w = waiters.get(t.id);
       if (w && ['done', 'error', 'cancelled'].includes(t.status)) {
         waiters.delete(t.id);
-        if (!w.silent) taskToast(t);
+        clearTimeout(w.timer);
+        if (w.card && !w.card.hidden) w.card.finish(t, taskMessage(t));
+        else if (!w.silent) toast(...taskMessage(t));
         w.resolve(t);
-      }
+      } else if (w?.card && !w.card.hidden) w.card.update(t);
       sawTasks = true;
     }
   } catch { emit('connection', false); }
   if (generation !== pollGeneration) return;
   const busy = state.status?.tasks.some((t) => t.status === 'running' || t.status === 'queued');
-  pollTimer = setTimeout(poll, busy || waiters.size ? 1200 : 8000);
+  const watched = [...waiters.values()].some((w) => w.card && !w.card.hidden);
+  pollTimer = setTimeout(poll, watched ? 600 : busy || waiters.size ? 1200 : 8000);
 }
-function taskToast(t) {
-  if (t.status === 'error') return toast(`${esc(t.label)} failed: ${esc(t.message)}`, 'err', 8000);
-  if (t.status === 'cancelled') return toast(`${esc(t.label)} cancelled`, 'info');
+function taskMessage(t) {
+  if (t.status === 'error') return [`${esc(t.label)} failed: ${esc(t.message)}`, 'err', 8000];
+  if (t.status === 'cancelled') return [`${esc(t.label)} cancelled`, 'info'];
   const r = t.result || {};
   let msg = esc(t.label) + ' — done';
   if (r.deleted != null) msg = `${r.permanent ? 'Deleted' : 'Moved to recycle bin'}: <b>${num(r.deleted)}</b> items · ${bytes(r.freed)}`;
@@ -391,7 +438,7 @@ function taskToast(t) {
   if (r.purged != null) msg = `Freed ${bytes(r.freed)} (${num(r.purged)} items erased)`;
   if (r.renamed != null) msg = `Renamed <b>${num(r.renamed)}</b> items`;
   if (r.error_count) msg += ` <span class="danger-text">· ${num(r.error_count)} failed</span>`;
-  toast(msg, r.error_count ? 'err' : 'ok', r.error_count ? 8000 : 4200);
+  return [msg, r.error_count ? 'err' : 'ok', r.error_count ? 8000 : 4200];
 }
 
 // ---------------------------------------------------------------- folder picker

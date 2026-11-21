@@ -6,11 +6,14 @@ import urllib.request
 
 ZOO = '48b10fa505aeb51fbd127fc60a5c660040e823b7'
 CLIP = 'd15189d7028b43f1d3e65039190477f6af591c2a'
+RAPIDOCR = 'v3.10.0'  # Hindi (Devanagari) and Telugu readers, as pinned by the RapidOCR package itself
 FILES = [
     ('face_detection_yunet_2023mar.onnx', f'https://media.githubusercontent.com/media/opencv/opencv_zoo/{ZOO}/models/face_detection_yunet/face_detection_yunet_2023mar.onnx', '8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4'),
     ('face_recognition_sface_2021dec.onnx', f'https://media.githubusercontent.com/media/opencv/opencv_zoo/{ZOO}/models/face_recognition_sface/face_recognition_sface_2021dec.onnx', '0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79'),
     ('semantic/text_model_quantized.onnx', f'https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/{CLIP}/onnx/text_model_quantized.onnx', '73baab855d406190da9faa498cfedf65f15cf309f4cc7385b7b032e6d08e5c3a'),
     ('semantic/vision_model_quantized.onnx', f'https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/{CLIP}/onnx/vision_model_quantized.onnx', '583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299'),
+    ('ocr/devanagari_PP-OCRv5_rec_mobile.onnx', f'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/{RAPIDOCR}/onnx/PP-OCRv5/rec/devanagari_PP-OCRv5_rec_mobile.onnx', 'd6f0a906580e3fa6b324a318718f1f31f268b6ea8ef985f91c2012a37f52c91e'),
+    ('ocr/te_PP-OCRv5_rec_mobile.onnx', f'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/{RAPIDOCR}/onnx/PP-OCRv5/rec/te_PP-OCRv5_rec_mobile.onnx', 'a3690451b50028a09a3316a1274f7c05728151ea3f8fd392696397a7fefcbd92'),
     ('semantic/tokenizer.json', f'https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/{CLIP}/tokenizer.json', 'f7f3b7af117d467b58374797691a6438d3e6b9e9cef800dfd5dced7f697a90cd'),
     ('semantic/preprocessor_config.json', f'https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/{CLIP}/preprocessor_config.json', '6f638fb9401a6d6296feff533ee7efe657b787c49f954f82f5906b36ef2a1b1f'),
 ]

@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import sys
 import time
+import unicodedata
 
 from fastapi import HTTPException
 from . import db, features, fileops, jobs, scope
@@ -135,13 +136,51 @@ def parse(text):
     return {"filter": filters, "labels": labels}
 
 
+def fts_terms(text: str) -> list[str]:
+    """Words as the full-text index stores them: split on spaces and punctuation only.
+
+    A plain \\w+ split cuts Hindi, Telugu and other Indic words apart at their vowel signs (which are not
+    word characters to Python), so the index never matched them."""
+    out, cur = [], []
+    for ch in str(text):
+        if unicodedata.category(ch)[0] in "PZC":
+            if cur:
+                out.append("".join(cur))
+                cur = []
+        else:
+            cur.append(ch)
+    if cur:
+        out.append("".join(cur))
+    return out[:30]
+
+
+def _like(word: str) -> str:
+    return "%" + word.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+
+def relevance_order(text) -> tuple[str, list]:
+    """ORDER BY terms for 'Best match': the name matches, then a person's name, then the folder, then words inside."""
+    words = str(text)[:500].strip().split()[:30]
+    if not words:
+        return "ts DESC", []
+    every = lambda field: "(" + " AND ".join(field + " LIKE ? ESCAPE '\\'" for _ in words) + ")"
+    pats = [_like(w) for w in words]
+    sql, params = f"CASE WHEN {every('lower(name)')} THEN 0", list(pats)
+    if features.enabled('people'):
+        sql += (" WHEN id IN (SELECT cf.file_id FROM current_faces cf JOIN people p ON p.id=cf.person_id WHERE cf.ignored=0 AND "
+                + " AND ".join("lower(p.name) LIKE ? ESCAPE '\\'" for _ in words) + ") THEN 1")
+        params += pats
+    sql += f" WHEN {every('lower(path)')} THEN 2 ELSE 3 END, ts DESC"
+    params += pats
+    return sql, params
+
+
 def text_condition(text):
     """A literal query, never raw FTS syntax. Matches names, folders, people or extracted text."""
     words = str(text)[:500].strip().split()[:30]
     if not words:
         return "1", []
-    def pattern(word):
-        return "%" + word.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    pattern = _like
     clauses, params = [], []
     for field in ("lower(name)", "lower(path)"):
         clauses.append("(" + " AND ".join(field + " LIKE ? ESCAPE '\\'" for _ in words) + ")")
@@ -150,7 +189,12 @@ def text_condition(text):
         clauses.append("id IN (SELECT cf.file_id FROM current_faces cf JOIN people p ON p.id=cf.person_id WHERE cf.ignored=0 AND " +
             " AND ".join("lower(p.name) LIKE ? ESCAPE '\\'" for _ in words) + ")")
         params += [pattern(w) for w in words]
-    terms = re.findall(r"\w+", " ".join(words), re.UNICODE)
+    if features.enabled('photo_search'):
+        # Things recognised in photos: "dog", or a two-word thing like "ice cream".
+        labels = sorted({w.lower() for w in words} | {" ".join(words).lower()})
+        clauses.append(f"id IN (SELECT file_id FROM photo_tags WHERE label IN ({','.join('?' * len(labels))}))")
+        params += labels
+    terms = fts_terms(" ".join(words))
     if terms and features.enabled('documents'):
         clauses.append("id IN (SELECT t.file_id FROM document_text JOIN text_index t ON t.file_id=document_text.rowid "
             "JOIN files fresh ON fresh.id=t.file_id AND fresh.path=t.path AND fresh.mtime=t.mtime AND fresh.size=t.size "

@@ -59,13 +59,24 @@ class Worker:
 
 
 def index(task, owners=None, retry=False):
+    """retry: also files that failed; 'redo': also files read before the current text reader (asked for once, kept until done)."""
+    from .ocr_worker import READER
     scope.set_owners(owners)
     worker = None
     try:
+        if db.kv_get('ocr_reader') != READER:
+            db.kv_set('ocr_reader', READER)
+            db.kv_set('ocr_reader_since', time.time())
+        if retry == 'redo':
+            db.kv_set('ocr_redo', '1')
+        redo = db.kv_get('ocr_redo') == '1'
         where, args = scope.where('f.owner', "(f.cat='image' OR f.ext='pdf')")
         rows = jobs.index_batch(task, 'SELECT f.id,f.path,f.ext,f.size,f.mtime FROM files f LEFT JOIN ocr_index o ON o.file_id=f.id' + where +
             ' AND (o.file_id IS NULL OR o.path!=f.path OR o.mtime!=f.mtime OR o.size!=f.size' +
-            (" OR o.state='error'" if retry else '') + ') ORDER BY f.ts DESC', args)
+            (" OR o.state='error'" if retry else '') + (' OR o.updated<?' if redo else '') + ') ORDER BY f.ts DESC',
+            args + ([float(db.kv_get('ocr_reader_since', 0))] if redo else []))
+        if redo and not rows:
+            db.kv_set('ocr_redo', '0')
         errors = recognized = 0
         for n, row in enumerate(rows):
             task.progress(done=n, total=len(rows), stage='Reading text in images', message=f'{n:,} of {len(rows):,} images and PDFs checked')
@@ -115,4 +126,6 @@ def status():
     r = db.conn().execute("SELECT COUNT(*) total,SUM(o.file_id IS NOT NULL) checked,SUM(o.state='error') errors,"
         "SUM(o.state='partial') partial,SUM(o.file_id IN (SELECT rowid FROM ocr_text)) AS indexed "
         'FROM files f LEFT JOIN ocr_index o ON o.file_id=f.id AND o.path=f.path AND o.mtime=f.mtime AND o.size=f.size' + where, args).fetchone()
-    return {**{k:r[k] or 0 for k in r.keys()}, 'local': True, 'task': next((t for t in jobs.history() if t['kind']=='ocr' and t['status'] in ('queued','running')),None)}
+    old = db.conn().execute('SELECT COUNT(*) FROM ocr_index WHERE updated<?', (float(db.kv_get('ocr_reader_since', 0) or 0),)).fetchone()[0] if db.kv_get('ocr_reader_since') else 0
+    return {**{k:r[k] or 0 for k in r.keys()}, 'local': True, 'read_before_update': old, 'redo': db.kv_get('ocr_redo') == '1',
+        'task': next((t for t in jobs.history() if t['kind']=='ocr' and t['status'] in ('queued','running')),None)}

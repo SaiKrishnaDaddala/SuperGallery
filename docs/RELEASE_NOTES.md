@@ -1,25 +1,29 @@
-SuperGallery 2.5.0 makes People easier to manage, tells you when a new version is out, and runs lighter on your NAS.
+SuperGallery 2.6.0 is a big redesign: it now looks and works like Google Photos and Drive, recognises things in your photos, reads Hindi and Telugu text, and is lighter on your NAS.
 
-## People
-- **Merge people in one step:** tap Select on the People page, pick the groups that are the same person and choose which name to keep.
-- **Browse a person's photos** in the viewer, one after another, straight from their page.
-- **Deleting is smoother:** pages update right away, the selection bar stays at the bottom of the screen, and when every photo of someone is deleted the app says so and takes you back.
-- **Names survive a restore:** if you restore a named person's photos from Recently deleted, they come back under the same name automatically.
+## A new look
+- **Google-style design:** a top bar with a large search box, a short sidebar, an Upload button, clean white pages and rounded buttons. Dark mode included.
+- **Photos timeline** grouped by day, with every photo at its own shape. Hover a date to select the whole day.
+- **Explore:** People, Things and Collections on one page.
+- **One toolbar for every file list:** count, Select all, sort, and list or thumbnail view (remembered).
+- **File types** open on their own page, as a list or thumbnails.
 
-## Updates
-- A notice appears when a new version is available, with these release notes and the steps to update. You can turn the check off in Settings.
-- Optional one-click updates with Watchtower (see the README).
+## Smarter
+- **Things in photos:** dogs, food, temples, receipts, beaches and more than 120 other everyday things are recognised on your NAS. Find them in Explore, in the photo's Info panel, or just type "dog" in search.
+- **Hindi and Telugu text** in photos and scans is now read and searchable. Photos read by earlier versions can be read again from Search → Search readiness → Read all again.
+- **Best match first:** typing words in search shows the best matches first.
+- **Photo search** is about 3× faster and returns a fuller set of close matches.
 
-## Faster and lighter
-- About 27% smaller download (416 MB instead of 567 MB).
-- Uses less memory: AI models unload after 10 idle minutes.
-- Indexing runs at lower priority so your NAS stays responsive, and finding people is about 1.8x faster.
-- Pages load about 3x less data.
+## Recycle bin
+- Shows only the deleted files of the person you selected at the top, and Empty recycle bin / Restore all stay inside that person. **Before this update, Empty recycle bin erased every person's deleted files.**
+- Preview deleted photos: click the thumbnail or double-click the row.
 
-## Fixes and polish
-- On phones, taps on the left side of the screen stopped working after the first message popup. Fixed, and page titles no longer get squeezed next to their buttons.
-- Readable error messages, aligned pages, working File types selection, photo thumbnails in search results, a calmer sign-in animation for reduced-motion devices with a pause button, and many accessibility improvements.
-- Duplicate cleanup recognises backup, download and WhatsApp folders, so it keeps your originals.
+## Smoother everyday use
+- Deleting, erasing, restoring and moving show progress and the result in the middle of the screen.
+- Double-click opens the preview in every list; selecting no longer makes the list jump.
+- Collections have Select all.
+
+## Lighter on your NAS
+- Fewer database locks per request, cached counts, no needless regrouping of similar photos, and less decoding work when indexing photos.
 
 ## Install or update
-Use `ghcr.io/saikrishnadaddala/supergallery:2.5.0` (or `:latest`). On a UGREEN NAS: Docker → Project → supergallery → Redeploy, tick "Pull the latest image". With Docker Compose: `docker compose pull && docker compose up -d`. Your library, people, albums and settings are kept.
+Use `ghcr.io/saikrishnadaddala/supergallery:2.6.0` (or `:latest`). On a UGREEN NAS: Docker → Project → supergallery → Redeploy, tick "Pull the latest image". With Docker Compose: `docker compose pull && docker compose up -d`. Your library, people, albums and settings are kept. After the update, things in photos are recognised automatically the next time photo search indexes (it reuses existing work, so it is quick).

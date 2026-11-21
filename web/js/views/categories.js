@@ -19,7 +19,7 @@ export function scopeBanner() {
 
 export function categoriesView(root, params, sub) {
   if (sub[0]) return detail(root, sub[0]);
-  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Photo & video categories</h1>
+  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Collections</h1>
     <p>Every photo and video is sorted automatically on your NAS — no cloud. Review a category and clean it in one tap.</p></div></div>
     ${scopeBanner()}<div class="pend"></div><div class="grid g3 cards"></div></div>`);
   root.append(el);
@@ -48,18 +48,21 @@ export function categoriesView(root, params, sub) {
 }
 
 function detail(root, key) {
-  const el = h(`<div class="view" style="display:flex;flex-direction:column">
-    <div class="page-head"><a class="btn icon" href="#/categories">${icon('left')}</a><div class="grow"><h1 class="t">…</h1><p class="d"></p></div>
-      <button class="btn danger all">${icon('trash')}Delete all</button></div>${scopeBanner()}</div>`);
+  const el = h(`<div class="view fill">
+    <div class="page-head"><a class="btn icon ghost" href="#/categories" aria-label="Back to collections">${icon('left')}</a><div class="grow"><h1 class="t">Collection</h1><p class="d">&nbsp;</p></div>
+      <button class="btn danger all" disabled>${icon('trash')}Delete all</button></div>${scopeBanner()}</div>`);
   root.append(el);
-  const list = resultList({ filter: { kind: key }, sort: 'size', order: 'desc', mode: 'grid', empty: 'Nothing in this category' });
+  const list = resultList({ filter: { kind: key }, sort: 'size', order: 'desc', mode: 'grid', id: 'collections', empty: 'Nothing in this collection' });
   el.append(list.el);
-  api('/categories').then((r) => {
+  const summary = () => api('/categories').then((r) => {
     const c = r.categories.find((x) => x.key === key);
     if (!c) return;
     $('.t', el).textContent = c.title;
-    $('.d', el).textContent = `${c.desc} · ${num(c.count)} files · ${bytes(c.size)}`;
-    if (!c.count) $('.all', el).disabled = true;
+    $('.d', el).textContent = `${c.desc} · ${num(c.count)} ${c.count === 1 ? 'file' : 'files'} · ${bytes(c.size)}`;
+    $('.all', el).disabled = !c.count;
   }).catch(fail);
-  $('.all', el).onclick = () => { list.selectAll(); list.deleteSelected(); };
+  $('.all', el).onclick = async () => { list.selectAll(); if (!(await list.deleteSelected())) list.clear(); };
+  summary();
+  const off = on('changed', summary);
+  return () => { off(); list.destroy(); };
 }

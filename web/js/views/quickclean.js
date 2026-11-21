@@ -7,7 +7,7 @@ const LINK = { phonetrash: '#/categories/phonetrash', cache: '#/categories/cache
 
 export function quickcleanView(root) {
   const picked = new Set();
-  const el = h(`<div class="view review-view"><div class="page-head"><div class="grow"><h1>Review</h1>
+  const el = h(`<div class="view review-view"><div class="page-head"><div class="grow"><h1>Clean up</h1>
     <p>A little space, thoughtfully reclaimed. Review each category before selecting it.</p></div></div>
     ${scopeBanner()}
     <div class="card hero" style="margin-bottom:18px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">

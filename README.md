@@ -38,10 +38,11 @@ SuperGallery is a self-hosted photo gallery and smart file manager for a home NA
 ## Features
 
 ### Gallery and search
-- **Photos timeline** grouped by month with a year/month scrubber, adjustable grid size and a full-screen viewer for photos, videos, audio and PDFs.
+- **Photos timeline** grouped by month and day, photos at their own shape, a year/month scrubber, adjustable size and a full-screen viewer for photos, videos, audio and PDFs.
+- **Explore** — people, things recognised in your photos (dogs, food, temples, receipts, beaches and more than 120 others) and collections, all worked out on the NAS.
 - **Search by meaning** — type "sunset at the beach" or "people cycling" and get matching photos, using a local CLIP model (no cloud).
 - **Video scene search** — finds the moment inside a video and opens it at that timestamp.
-- **Text in images and documents** — on-device OCR for receipts and screenshots, plus text extraction from PDFs and office documents.
+- **Text in images and documents** — on-device OCR for receipts and screenshots in English, Hindi and Telugu, plus text extraction from PDFs and office documents. Search ranks the best matches first.
 - **People** — local face grouping with names you assign.
 - **Smart albums** that keep themselves up to date from a saved search.
 - **Command palette** (Ctrl K) and search filters such as `type:video larger:100mb after:2025-01-01`.
@@ -49,14 +50,15 @@ SuperGallery is a self-hosted photo gallery and smart file manager for a home NA
 ### File manager
 - Keyboard-driven, dual-pane file manager with list and grid views that stay fast with 100,000+ entries: previews, multi-select, drag-and-drop moves, rename, bulk rename with preview and new folders.
 - **Resumable uploads** of very large files with checksums, plus ZIP download of folders.
-- **Recently deleted** recycle bin with restore and configurable retention — deletes are never immediate.
+- **Recycle bin** per user, with preview, restore and configurable retention — deletes are never immediate.
+- **File types** — space by extension; open any type on its own page as a list or thumbnails.
 - Per-user libraries: pick one person, several, or everyone; duplicates are judged within each person's own files.
 
 ### Cleanup and storage
 - **Duplicates** — exact copies found by content hash, with "keep the recommended copy", "prefer keeping files in…" and a safety lock that always keeps one copy.
 - **Similar photos** — burst shots, resized and re-saved copies grouped together; keep the best, remove the rest.
 - **Collections** — automatic categories: camera photos, WhatsApp/chat images and memes, screenshots, documents and receipts, low quality, blurry, dark and more.
-- **Review** — the best clean-up suggestions in one place, including recommendations learned from what you deleted before.
+- **Clean up** — the best clean-up suggestions in one place, including recommendations learned from what you deleted before.
 - **Storage insights** — space by type, top extensions, size distribution, largest files, duplicate folders and delete-by-extension.
 - **Cleanup rules** (optional) that run on a schedule.
 
@@ -169,7 +171,8 @@ These optional environment variables go in `compose.yaml`; the defaults suit a 4
 | `FACE_WORKERS` | `2` | Photos checked for faces at once (People) |
 | `HASH_WORKERS` | `4` | Files read at once when finding duplicates |
 | `BACKGROUND_NICE` | `10` | CPU priority of indexing (0 = same as the web UI, 19 = lowest) |
-| `MODEL_IDLE_MINUTES` | `10` | Unload the AI models after this many idle minutes to free memory (0 = keep loaded) |
+| `MODEL_IDLE_MINUTES` | `10` | Unload the AI models (and the photo-search index held in memory) after this many idle minutes to free memory (0 = keep loaded) |
+| `OCR_EXTRA_SCRIPTS` | `devanagari,te` | Extra scripts text recognition tries on lines the main reader is unsure of: Hindi/Marathi (`devanagari`) and Telugu (`te`). Empty = English only |
 
 ## Good to know
 

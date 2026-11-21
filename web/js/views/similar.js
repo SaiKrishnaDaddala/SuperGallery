@@ -11,8 +11,8 @@ export function similarView(root) {
   const el = h(`<div class="view">
     <div class="page-head"><div class="grow"><h1>Similar photos</h1><p class="sum">Resized copies, re-saved JPEGs, edits and burst shots.</p></div></div>
     ${scopeBanner()}
-    <div class="card" style="margin-bottom:14px"><h3>${icon('wand')}Keep the best, remove the rest<span class="right row" style="gap:10px;font-size:13px"><span class="muted">Within each user</span>
-      <label class="switch"><input type="checkbox" class="peruser" aria-label="Within each user"><span></span></label></span></h3>
+    <div class="card" style="margin-bottom:14px"><h2>${icon('wand')}Keep the best, remove the rest<span class="right row" style="gap:10px;font-size:13px"><span class="muted">Within each user</span>
+      <label class="switch"><input type="checkbox" class="peruser" aria-label="Within each user"><span></span></label></span></h2>
       <div class="row wrap" style="gap:10px">
         <select class="input keep" aria-label="Which photo to keep">${KEEP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
         <button class="btn primary auto">${icon('wand')}Auto-select all groups</button>
@@ -20,8 +20,7 @@ export function similarView(root) {
         <span class="grow"></span><button class="btn ghost clear">${icon('x')}Clear</button>
       </div>
       <div class="faint" style="font-size:12.5px;margin-top:10px">"Keep highest resolution" marks every smaller / lower-quality version for deletion — perfect for WhatsApp copies and thumbnails. Click any photo to toggle, double-click to view.</div></div>
-    <div class="selbar hidden"></div>
-    <div class="groups"></div><div class="more-slot" style="text-align:center;padding:10px"></div></div>`);
+    <div class="groups"></div><div class="more-slot" style="text-align:center;padding:10px"></div><div class="selbar pinned hidden"></div></div>`);
   root.append(el);
 
   const total = () => [...st.sel.values()].reduce((a, x) => a + x.size, 0);

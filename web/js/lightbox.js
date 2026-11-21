@@ -4,18 +4,19 @@ import { $, api, bytes, confirmDelete, containDialogFocus, date, esc, fail, h, i
 const VIDEO_PLAYABLE = new Set(['mp4', 'webm', 'm4v', 'mov', 'ogv']);
 const AUDIO = new Set(['mp3', 'm4a', 'aac', 'ogg', 'opus', 'wav', 'flac']);
 
-/** items: [{id?, path, name, ext, cat, size, ...}]; onDeleted(item) lets the caller update its list. */
-export function lightbox(items, index = 0, { onDeleted, onClose } = {}) {
+/** items: [{id?, path, name, ext, cat, size, ...}]; onDeleted(item) lets the caller update its list.
+ *  raw/thumb replace the media URLs and readOnly drops Delete, Share and Info, for files outside the library. */
+export function lightbox(items, index = 0, { onDeleted, onClose, raw = rawUrl, thumb = thumbUrl, readOnly = false } = {}) {
   let i = index;
   const previous = document.activeElement;
   let closed = false;
-  let showInfo = localStorage.getItem('lb-info') === '1';
+  let showInfo = !readOnly && localStorage.getItem('lb-info') === '1';
   const el = h(`<dialog class="lightbox" aria-label="Media preview"><div class="lb-stage">
       <div class="lb-top"><div class="grow ellipsis name"></div><span class="pos muted"></span>
-        <a class="btn sm dl">${icon('download')}Download</a>
-        <button class="btn sm share">${icon('upload')}Share</button>
-        <button class="btn sm inf">${icon('info')}Info</button>
-        <button class="btn sm del">${icon('trash')}Delete</button>
+        <button class="btn sm share" title="Share" aria-label="Share">${icon('upload')}</button>
+        <button class="btn sm inf" title="Info (i)" aria-label="Info">${icon('info')}</button>
+        <a class="btn sm dl" title="Download" aria-label="Download">${icon('download')}</a>
+        <button class="btn sm del" title="Delete (Del)" aria-label="Delete">${icon('trash')}</button>
         <button class="btn sm icon close" aria-label="Close preview">${icon('x')}</button></div>
       <div class="media" style="display:contents"></div>
       <button class="lb-btn prev" aria-label="Previous item" style="left:16px">${icon('left')}</button>
@@ -28,17 +29,17 @@ export function lightbox(items, index = 0, { onDeleted, onClose } = {}) {
     if (!it) return close();
     $('.name', el).textContent = it.name;
     $('.pos', el).textContent = `${i + 1} / ${items.length}`;
-    $('.dl', el).href = rawUrl(it, true);
+    $('.dl', el).href = raw(it, true);
     const m = $('.media', el);
     if (it.cat === 'video' && VIDEO_PLAYABLE.has(it.ext)) {
-      m.innerHTML = `<video src="${rawUrl(it)}" controls autoplay playsinline poster="${thumbUrl(it, 1600)}"></video>`;
+      m.innerHTML = `<video src="${raw(it)}" controls autoplay playsinline poster="${thumb(it, 1600)}"></video>`;
       if(Number.isFinite(it.start_seconds)&&it.start_seconds>0){const player=$('video',m);player.addEventListener('loadedmetadata',()=>{player.currentTime=Math.min(it.start_seconds,Math.max(0,player.duration-.1));},{once:true});}
     } else if (it.cat === 'audio' && AUDIO.has(it.ext)) {
-      m.innerHTML = `<audio src="${rawUrl(it)}" controls autoplay></audio>`;
+      m.innerHTML = `<audio src="${raw(it)}" controls autoplay></audio>`;
     } else if (it.ext === 'pdf') {
-      m.innerHTML = `<iframe src="${rawUrl(it)}" style="width:100%;height:100vh;border:0;background:#fff"></iframe>`;
+      m.innerHTML = `<iframe src="${raw(it)}" style="width:100%;height:100vh;border:0;background:#fff"></iframe>`;
     } else {
-      m.innerHTML = `<img src="${thumbUrl(it, 1600)}" alt="">`;
+      m.innerHTML = `<img src="${thumb(it, 1600)}" alt="">`;
       const img = $('img', m);
       img.onerror = () => { m.innerHTML = `<div class="empty">${icon('eyeOff')}<div>No preview for this file type</div></div>`; };
     }
@@ -56,6 +57,7 @@ export function lightbox(items, index = 0, { onDeleted, onClose } = {}) {
           ${d.sharpness != null ? `<div>Sharpness</div><div>${d.sharpness.toFixed(0)} ${d.sharpness < 40 ? '<span class="badge warn">blurry</span>' : ''}</div>` : ''}
           <div>Folder</div><div class="mono">${esc(shortPath(d.path.split('/').slice(0, -1).join('/')))}</div>
           ${d.hash ? `<div>Checksum</div><div class="mono">${esc(d.hash)}</div>` : ''}
+          ${d.tags?.length ? `<div>Things</div><div class="lb-tags">${d.tags.map((t) => `<a class="chip" href="#/explore/things/${encodeURIComponent(t.label)}">${esc(t.label)}</a>`).join('')}</div>` : ''}
           ${d.copies?.length ? `<div>Copies</div><div>${d.copies.map((c) => `<div class="mono">${esc(shortPath(c))}</div>`).join('')}</div>` : ''}
         </div>`;
       } catch (e) { side.textContent = e.message; }
@@ -79,8 +81,8 @@ export function lightbox(items, index = 0, { onDeleted, onClose } = {}) {
     if (e.key === 'Escape') close();
     else if (e.key === 'ArrowRight') go(1);
     else if (e.key === 'ArrowLeft') go(-1);
-    else if (e.key === 'Delete') del();
-    else if (e.key === 'i') $('.inf', el).click();
+    else if (e.key === 'Delete' && !readOnly) del();
+    else if (e.key === 'i' && !readOnly) $('.inf', el).click();
     else return;
     e.preventDefault(); e.stopPropagation();
   };
@@ -91,6 +93,7 @@ export function lightbox(items, index = 0, { onDeleted, onClose } = {}) {
   $('.share',el).onclick=async()=>{const it=items[i],button=$('.share',el);try{button.disabled=true;if(navigator.share&&it.size<=50*1024*1024){const response=await fetch(rawUrl(it));if(!response.ok)throw new Error('Could not prepare the file for sharing.');const file=new File([await response.blob()],it.name,{type:response.headers.get('content-type')||''});if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:it.name});return;}}await navigator.clipboard.writeText(new URL(rawUrl(it),location.origin).href);toast('Private NAS link copied. The recipient needs NAS access and a SuperGallery login.');}catch(e){if(e.name!=='AbortError')fail(e);}finally{button.disabled=false;}};
   $('.inf', el).onclick = () => { showInfo = !showInfo; localStorage.setItem('lb-info', showInfo ? '1' : '0'); show(); };
   if (items.length < 2) { $('.prev', el).remove(); $('.next', el).remove(); }
+  if (readOnly) ['.del', '.share', '.inf'].forEach((s) => $(s, el).remove());
   document.addEventListener('keydown', key, true);
   document.body.append(el);
   containDialogFocus(el);

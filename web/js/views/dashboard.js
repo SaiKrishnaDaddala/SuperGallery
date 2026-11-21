@@ -9,7 +9,7 @@ const TIP_ICONS = {dupes:'copy',similar:'layers',phonetrash:'trash',chat:'images
 
 export function dashboardView(root) {
   let disposed = false, revision = 0;
-  const el = h(`<div class="view home-view"><div class="page-head"><div class="grow"><h1>Library</h1><p class="library-caption">Your photos, files, and storage.</p></div><button class="btn rescan" aria-label="Refresh library">${icon('refresh')}<span>Refresh</span></button></div>${scopeBanner()}<div class="home-body"><div class="home-skeleton" role="status" aria-label="Loading your library"><div></div><div></div><div></div></div></div></div>`);
+  const el = h(`<div class="view home-view"><div class="page-head"><div class="grow"><h1>Home</h1><p class="library-caption">Your photos, files, and storage.</p></div><button class="btn rescan" aria-label="Refresh library">${icon('refresh')}<span>Refresh</span></button></div>${scopeBanner()}<div class="home-body"><div class="home-skeleton" role="status" aria-label="Loading your library"><div></div><div></div><div></div></div></div></div>`);
   root.append(el);
   const scan = $('.rescan',el);
   scan.onclick = async () => {

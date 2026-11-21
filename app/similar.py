@@ -15,6 +15,13 @@ ROW_TILE = 256
 COL_TILE = 16384
 
 
+def signature(threshold: int) -> str:
+    """Changes whenever the photos that grouping looks at change: added, removed, re-analysed or resized."""
+    r = db.conn().execute("""SELECT COUNT(*), COALESCE(SUM(id),0), TOTAL(ha), TOTAL(hb), COALESCE(SUM(width*3+height),0) FROM files
+                             WHERE cat='image' AND analyzed=1 AND ha IS NOT NULL AND width>0 AND height>0""").fetchone()
+    return f"{threshold}:" + ":".join(str(x) for x in r)
+
+
 def compute(task, threshold: int = DEFAULT_THRESHOLD):
     c = db.conn()
     task.progress(0, 0, stage="Finding similar photos")

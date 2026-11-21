@@ -12,11 +12,11 @@ const KEEP = [
 export function duplicatesView(root, params) {
   const st = { filter: params.get('dir') ? { dir: params.get('dir') } : {}, sort: 'wasted', groups: [], offset: 0, done: false, sel: new Map(), keep: 'recommended', prefer: '', only: '', perUser: localStorage.getItem('dup-across') !== '1' };
   const el = h(`<div class="view">
-    <div class="page-head"><div class="grow"><h1>Duplicates</h1><p class="sum">Exact byte-for-byte copies, verified with a full content hash.</p></div></div>
+    <div class="page-head"><div class="grow"><h1>Duplicates</h1><p class="sum">Files that are exact copies of each other. One copy of every file is always kept.</p></div></div>
     ${scopeBanner()}
     <div class="card" style="margin-bottom:14px">
-      <h3>${icon('wand')}Smart select<span class="right row" style="gap:10px;font-size:13px"><span class="muted">Within each user</span>
-        <label class="switch" title="On: only copies owned by the same user count as duplicates. Off: compare across the selected users."><input type="checkbox" class="peruser" aria-label="Within each user"><span></span></label></span></h3>
+      <h2>${icon('wand')}Smart select<span class="right row" style="gap:10px;font-size:13px"><span class="muted">Within each user</span>
+        <label class="switch" title="On: only copies owned by the same user count as duplicates. Off: compare across the selected users."><input type="checkbox" class="peruser" aria-label="Within each user"><span></span></label></span></h2>
       <div class="row wrap" style="gap:10px">
         <select class="input keep" aria-label="Which copy to keep">${KEEP.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
         <button class="btn prefer">${icon('star')}<span>Prefer keeping files in…</span></button>
@@ -27,7 +27,6 @@ export function duplicatesView(root, params) {
       </div>
       <div class="faint" style="font-size:12.5px;margin-top:10px">Example: keep the copies in <b>Photos</b>, delete the ones in <b>Backup</b> and <b>WhatsApp</b> — choose "Prefer keeping files in Photos", then Auto-select. A safety lock always keeps one copy of every file.</div>
     </div>
-    <div class="selbar hidden"></div>
     <div class="filters">
       <select class="input sm f-cat" aria-label="File type"><option value="">All types</option>${Object.entries(CAT_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       <select class="input sm f-min" aria-label="Minimum size"><option value="">Any size</option><option value="102400">≥ 100 KB</option><option value="1048576">≥ 1 MB</option><option value="10485760">≥ 10 MB</option><option value="104857600">≥ 100 MB</option><option value="1073741824">≥ 1 GB</option></select>
@@ -35,7 +34,7 @@ export function duplicatesView(root, params) {
       <span class="grow"></span><span class="muted">Sort</span>
       <select class="input sm f-sort" aria-label="Sort groups"><option value="wasted">Most wasted space</option><option value="count">Most copies</option><option value="size">Largest file</option></select>
     </div>
-    <div class="groups"></div><div class="more-slot" style="text-align:center;padding:10px"></div></div>`);
+    <div class="groups"></div><div class="more-slot" style="text-align:center;padding:10px"></div><div class="selbar pinned hidden"></div></div>`);
   root.append(el);
 
   const sum = () => [...st.sel.values()].reduce((a, x) => a + x.size, 0);
@@ -74,6 +73,7 @@ export function duplicatesView(root, params) {
         <span class="muted num">${date(f.mtime)}${f.id===g.recommended_id?' · recommended':''}</span><span class="tag"></span><button class="btn sm ghost icon op" title="Open folder">${icon('folderOpen')}</button></div>`).join('')}<p class="muted" style="padding:10px 16px;font-size:12px">${esc(g.recommendation||'One copy is always kept.')} Recycling checks that the kept copy is still available and unchanged.</p></div>`);
     $$('.gfile', el2).forEach((r) => {
       const f = g.files.find((x) => x.id === +r.dataset.id);
+      r.ondblclick = (e) => { if (THUMBABLE.has(f.ext) && !e.target.closest('.op, input')) lightbox(g.files, g.files.indexOf(f)); };
       r.onclick = (e) => {
         if (e.target.closest('.op')) { location.hash = '#/files?path=' + encodeURIComponent(f.dir); return; }
         if (st.sel.has(f.id)) st.sel.delete(f.id);

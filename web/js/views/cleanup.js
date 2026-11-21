@@ -11,7 +11,7 @@ export function cleanupView(root, params, sub) {
   if (key === 'empty_folders') return emptyFolders(el);
   if (key) return category(el, key);
 
-  el.innerHTML = `<div class="page-head"><div class="grow"><h1>Cleanup categories</h1><p>Browse suggestions by type. Review files and select what you no longer need.</p></div></div>
+  el.innerHTML = `<div class="page-head"><div class="grow"><h1>Cleanup suggestions</h1><p>Browse suggestions by type. Review files and select what you no longer need.</p></div></div>
     <div class="grid g3 cards"></div>`;
   api('/cleanup').then((r) => {
     const cards = [...r.categories, { key: 'empty_folders', title: 'Empty folders', desc: 'Folders with no files anywhere inside', count: r.empty_folders, size: 0 }];
@@ -30,7 +30,7 @@ export function cleanupView(root, params, sub) {
 
 function category(el, key) {
   const blur = +(localStorage.getItem('blur') || 40);
-  el.innerHTML = `<div class="page-head"><a class="btn ghost icon" href="#/cleanup" aria-label="Back to cleanup categories">${icon('left')}</a><div class="grow"><h1 class="t">Review files</h1><p class="d">Loading this category…</p></div>
+  el.innerHTML = `<div class="page-head"><a class="btn ghost icon" href="#/cleanup" aria-label="Back to cleanup suggestions">${icon('left')}</a><div class="grow"><h1 class="t">Review files</h1><p class="d">Loading this category…</p></div>
     ${key === 'blurry' ? `<div class="row"><span class="muted">Sensitivity</span><input type="range" class="bl" min="10" max="120" step="5" value="${blur}"><span class="blv muted num">${blur}</span></div>` : ''}
     <button class="btn all" disabled>${icon('selectAll')}Select all</button></div>`;
   const list = resultList({ filter: { smart: key, blur }, sort: 'size', order: 'desc', mode: ['blurry', 'dark', 'tiny', 'screenshots'].includes(key) ? 'grid' : 'list', empty: 'No files in this category' });
@@ -58,7 +58,7 @@ function category(el, key) {
 }
 
 function emptyFolders(el) {
-  el.innerHTML = `<div class="page-head"><a class="btn ghost icon" href="#/cleanup">${icon('left')}</a><div class="grow"><h1>Empty folders</h1><p class="d">Folders that contain no files at all (sub-folders included).</p></div>
+  el.innerHTML = `<div class="page-head"><a class="btn ghost icon" href="#/cleanup" aria-label="Back to cleanup suggestions">${icon('left')}</a><div class="grow"><h1>Empty folders</h1><p class="d">Folders that contain no files at all (sub-folders included).</p></div>
     <button class="btn danger all">${icon('trash')}Remove all</button></div><div class="card" style="padding:0"><div class="lst"></div></div>`;
   let rows = [];
   const sel = new Set();

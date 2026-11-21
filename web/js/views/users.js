@@ -2,9 +2,9 @@
 import { api, avatar, bytes, esc, fail, h, icon, num, on, setScope, state, userColor, userLabel } from '../core.js';
 
 export function usersView(root) {
-  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Users</h1>
+  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Library users</h1>
     <p>Everyone's storage side by side. Pick a user to work only with their files.</p></div></div>
-    <div class="card" style="margin-bottom:18px"><h3>Storage</h3><div class="stack-bar"></div><div class="legend-row"></div></div>
+    <div class="card" style="margin-bottom:18px"><h2>Storage</h2><div class="stack-bar"></div><div class="legend-row"></div></div>
     <div class="grid g3 cards"><div class="card"><div class="spin"></div></div></div></div>`);
   root.append(el);
   const load = async () => {

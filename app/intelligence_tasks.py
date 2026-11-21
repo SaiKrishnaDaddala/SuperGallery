@@ -37,6 +37,9 @@ def _execute(task, request_id, kind, owners, retry):
             result['_continue'] = True
         else:
             del task._pending_rows
+            if kind == 'visual':
+                from . import tags
+                result.update(tags.update(task))
             task.progress(stage='Ready',message=f'{task.total:,} files checked; indexed results are ready')
         return result
     except jobs.Cancelled:

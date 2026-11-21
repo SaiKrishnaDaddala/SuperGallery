@@ -4,6 +4,7 @@ import { peopleView } from './views/people.js';
 import { albumsView } from './views/albums.js';
 import { uploadsView } from './views/uploads.js';
 import { categoriesView } from './views/categories.js';
+import { exploreView } from './views/explore.js';
 import { usersView } from './views/users.js';
 import { quickcleanView } from './views/quickclean.js';
 import { dupfoldersView } from './views/dupfolders.js';
@@ -42,24 +43,24 @@ const ROUTES = {
   dashboard: dashboardView, analytics: analyticsView, files: filesView, gallery: galleryView, search: searchView, large: searchView,
   duplicates: duplicatesView, similar: similarView, categories: categoriesView, users: usersView, people: peopleView,
   quickclean: quickcleanView, dupfolders: dupfoldersView, rules: rulesView, extensions: extensionsView, cleanup: cleanupView,
-  trash: trashView, organize: organizeView, settings: settingsView, albums: albumsView, uploads: uploadsView,
+  trash: trashView, organize: organizeView, settings: settingsView, albums: albumsView, uploads: uploadsView, explore: exploreView,
 };
 const NAV = [
-  ['Library', [['dashboard', 'Library', 'dashboard'], ['gallery', 'Photos', 'images'], ['people', 'People', 'users'], ['albums', 'Smart albums', 'bookmark'], ['files', 'Files', 'folder'], ['uploads', 'Upload', 'upload']]],
-  ['Organize', [['quickclean', 'Review', 'sparkles'], ['duplicates', 'Duplicates', 'copy', 'dup'], ['similar', 'Similar photos', 'layers', 'sim'], ['categories', 'Collections', 'tag'], ['analytics', 'Storage', 'pie']]],
-  ['More tools', [['search', 'Search', 'search'], ['users', 'Library users', 'users'], ['large', 'Large files', 'hdd'], ['dupfolders', 'Duplicate folders', 'folder'], ['extensions', 'File types', 'fileText'], ['cleanup', 'Cleanup categories', 'broom'], ['rules', 'Automation', 'refresh'], ['organize', 'Organize files', 'wand']]],
+  ['', [['dashboard', 'Home', 'home'], ['gallery', 'Photos', 'images'], ['explore', 'Explore', 'compass'], ['people', 'People', 'user'], ['albums', 'Albums', 'bookmark'], ['files', 'Files', 'folder']]],
+  ['Free up space', [['quickclean', 'Clean up', 'sparkles'], ['duplicates', 'Duplicates', 'copy', 'dup'], ['similar', 'Similar photos', 'layers', 'sim'], ['large', 'Large files', 'hdd'], ['extensions', 'File types', 'fileText']]],
+  ['More tools', [['categories', 'Collections', 'tag'], ['dupfolders', 'Duplicate folders', 'folder'], ['cleanup', 'Cleanup suggestions', 'broom'], ['organize', 'Organize files', 'wand'], ['rules', 'Automation', 'refresh'], ['users', 'Library users', 'users'], ['search', 'Advanced search', 'search']]],
 ];
 
 let teardown = null;
 let shellCleanup = () => {};
-const TAB_KEYS = ['dashboard', 'gallery', 'files', 'quickclean', 'search'];
+const TAB_KEYS = ['dashboard', 'gallery', 'explore', 'files', 'quickclean'];
 const tabLocations = new Map();
 let closeTools = null;
 
 function openTools() {
   if ($('.tools-sheet')) return;
   const previous = document.activeElement;
-  const dialog = h(`<dialog class="tools-sheet" aria-labelledby="tools-title"><div class="sheet-grab" aria-hidden="true"><span></span></div><div class="sheet-title"><h2 id="tools-title">Your library</h2><button class="btn icon ghost done" aria-label="Close library tools">${icon('x')}</button></div><div class="tools-content">${filteredNav(NAV).map(([title, links]) => `<section><h3>${esc(title)}</h3><div class="tools-group">${links.map(([key,label,ic]) => `<a href="#/${key}">${icon(ic)}<span>${esc(label)}</span>${icon('right')}</a>`).join('')}</div></section>`).join('')}<section><h3>Manage</h3><div class="tools-group"><a href="#/trash">${icon('trash')}<span>Recently deleted</span>${icon('right')}</a><a href="#/settings">${icon('settings')}<span>Settings</span>${icon('right')}</a></div></section></div></dialog>`);
+  const dialog = h(`<dialog class="tools-sheet" aria-labelledby="tools-title"><div class="sheet-grab" aria-hidden="true"><span></span></div><div class="sheet-title"><h2 id="tools-title">Your library</h2><button class="btn icon ghost done" aria-label="Close library tools">${icon('x')}</button></div><div class="tools-content">${filteredNav(NAV).map(([title, links]) => `<section><h3>${esc(title || 'Library')}</h3><div class="tools-group">${links.map(([key,label,ic]) => `<a href="#/${key}">${icon(ic)}<span>${esc(label)}</span>${icon('right')}</a>`).join('')}</div></section>`).join('')}<section><h3>Manage</h3><div class="tools-group"><a href="#/analytics">${icon('pie')}<span>Storage</span>${icon('right')}</a><a href="#/trash">${icon('trash')}<span>Recycle bin</span>${icon('right')}</a><a href="#/settings">${icon('settings')}<span>Settings</span>${icon('right')}</a></div></section></div></dialog>`);
   document.body.append(dialog);
   closeTools = presentSheet(dialog, $('.sheet-grab',dialog));
   $('.done', dialog).onclick = closeTools;
@@ -71,22 +72,23 @@ function shell() {
   shellCleanup();
   document.body.innerHTML = '';
   const app = h(`<div id="app">
-    <aside class="sidebar" id="navigation"><a class="brand" href="#/dashboard"><div class="logo"><img src="/static/icons/icon.svg" alt=""></div><span>SuperGallery<small>Your personal library</small></span></a>
-      <nav class="nav" aria-label="Main navigation">${filteredNav(NAV).map(([sec, items], index) => `${index === 2 ? '<details class="more-tools"><summary>More tools ' + icon('down') + '</summary>' : '<h6>' + sec + '</h6>'}${items.map(([k, label, ic, badge]) => `<a href="#/${k}" data-k="${k}" title="${label}">${icon(ic)}<span>${label}</span>${badge ? `<span class="badge b-${badge} hidden"></span>` : ''}</a>`).join('')}${index === 2 ? '</details>' : ''}`).join('')}
+    <aside class="sidebar" id="navigation"><a class="new-btn" href="#/uploads" title="Upload photos and files">${icon('plus')}<span>Upload</span></a>
+      <nav class="nav" aria-label="Main navigation">${filteredNav(NAV).map(([sec, items]) => `${sec === 'More tools' ? '<details class="more-tools"><summary>More tools ' + icon('down') + '</summary>' : sec ? '<h6>' + sec + '</h6>' : ''}${items.map(([k, label, ic, badge]) => `<a href="#/${k}" data-k="${k}" title="${label}">${icon(ic)}<span>${label}</span>${badge ? `<span class="badge b-${badge} hidden"></span>` : ''}</a>`).join('')}${sec === 'More tools' ? '</details>' : ''}`).join('')}
         <div class="bm"></div></nav>
-      <div class="side-foot"><a href="#/trash" data-k="trash">${icon('trash')}<span>Recently deleted</span><span class="badge b-trash hidden"></span></a><a href="#/settings" data-k="settings">${icon('settings')}<span>Settings</span></a><div class="library-health"><span class="status-dot"></span><span class="connection-label">Connecting to your NAS</span><button class="btn ghost sm icon collapse" title="Collapse sidebar" aria-label="Collapse sidebar">${icon('panel')}</button></div></div></aside>
+      <div class="side-foot"><a href="#/analytics" data-k="analytics">${icon('pie')}<span>Storage</span></a><a href="#/trash" data-k="trash">${icon('trash')}<span>Recycle bin</span><span class="badge b-trash hidden"></span></a><a href="#/settings" data-k="settings">${icon('settings')}<span>Settings</span></a><div class="library-health"><span class="status-dot"></span><span class="connection-label">Connecting to your NAS</span><button class="btn ghost sm icon collapse" title="Collapse sidebar" aria-label="Collapse sidebar">${icon('panel')}</button></div></div></aside>
     <button class="nav-scrim" aria-label="Close navigation"></button>
     <header class="topbar">
       <button class="btn icon ghost mobile-menu" aria-label="Browse library tools" aria-haspopup="dialog">${icon('panel')}</button>
-      <span class="route-label">Library</span>
-      <div class="search-box">${icon('search')}<input class="nlq" aria-label="Search your library" placeholder="Search your library"><button class="command-key" title="Search and commands (Ctrl+K)" aria-label="Open search and commands">⌘ K</button></div>
+      <a class="brand" href="#/dashboard" aria-label="SuperGallery home"><div class="logo"><img src="/static/icons/icon.svg" alt=""></div><span>SuperGallery</span></a>
+      <span class="route-label">Home</span>
+      <div class="search-box">${icon('search')}<input class="nlq" aria-label="Search your library" placeholder="Search photos, files and text in photos"><button class="command-key" title="Search and commands (Ctrl+K)" aria-label="Open search and commands">⌘ K</button></div>
       <div class="scope-slot"></div>
       <span class="grow"></span>
       <div class="task-slot"></div>
       <button class="btn icon ghost theme" title="Toggle appearance" aria-label="Toggle appearance">${icon('sun')}</button>
       <button class="btn icon ghost mobile-search" aria-label="Search and commands">${icon('search')}</button>
     </header>
-    <main id="main-content" tabindex="-1"></main><nav class="mobile-tabs" aria-label="Primary navigation">${[['dashboard','Library','dashboard'],['gallery','Photos','images'],['files','Files','folder'],['quickclean','Review','sparkles'],['search','Search','search']].map(([key,label,ic]) => `<a href="#/${key}" data-tab="${key}">${icon(ic)}<span>${label}</span></a>`).join('')}</nav></div>`);
+    <main id="main-content" tabindex="-1"></main><nav class="mobile-tabs" aria-label="Primary navigation">${[['dashboard','Home','home'],['gallery','Photos','images'],['explore','Explore','compass'],['files','Files','folder'],['quickclean','Clean up','sparkles']].map(([key,label,ic]) => `<a href="#/${key}" data-tab="${key}">${icon(ic)}<span>${label}</span></a>`).join('')}</nav></div>`);
   document.body.append(app);
   applyFeatureVisibility(app);
   const featureObserver=new MutationObserver(()=>applyFeatureVisibility(app));featureObserver.observe(app,{childList:true,subtree:true});
@@ -128,7 +130,7 @@ function shell() {
   };
   document.addEventListener('keydown', keyboard);
   const offStatus = on('status', (ev) => renderStatus(ev.detail));
-  const offScope = on('scope', () => { renderScope(); window.dispatchEvent(new HashChangeEvent('hashchange')); });
+  const offScope = on('scope', () => { renderScope(); poll(true); window.dispatchEvent(new HashChangeEvent('hashchange')); });
   loadUsers();
   const offPrefs = on('prefs', renderBookmarks);
   const offConnection = on('connection', ev => {

@@ -8,7 +8,8 @@ from PIL import Image, ImageOps
 from . import analyzer, media  # noqa: F401 - analyzer registers the HEIC opener
 from .config import DECODABLE, THUMB_DIR, VIDEO_THUMB
 
-_sem = threading.BoundedSemaphore(max(2, (os.cpu_count() or 4)))
+# Half the cores: scrolling a big grid must not take every CPU or hold many full-size decodes in memory at once.
+_sem = threading.BoundedSemaphore(max(2, (os.cpu_count() or 4) // 2))
 VIDEO = media.AVAILABLE
 
 

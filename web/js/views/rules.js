@@ -13,11 +13,11 @@ const targetLabel = (t) => (TARGETS.find(([k]) => k === targetKey(t)) || [0, t.e
 const parseTarget = (k) => { const [a, b] = k.split(':'); return { [a]: b }; };
 
 export function rulesView(root) {
-  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Auto-cleanup rules</h1>
+  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Automation</h1>
     <p>Let the NAS tidy itself. Rules run on a schedule and only ever move files to the recycle bin.</p></div>
     <button class="btn primary add">${icon('folderPlus')}New rule</button></div>
     <div class="list col" style="gap:12px"></div>
-    <h3 style="margin:26px auto 10px">Suggested rules</h3><div class="grid g3 tpl"></div></div>`);
+    <h2 style="margin:26px auto 10px">Suggested rules</h2><div class="grid g3 tpl"></div></div>`);
   root.append(el);
   let rules = [];
   const save = async () => { try { rules = (await api('/rules', { rules }, 'PUT')).rules; await load(); } catch (e) { fail(e); } };

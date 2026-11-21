@@ -6,7 +6,7 @@ const KIND_COLOR = { dupes: '#ff3b30', similar: '#af52de', chat: '#34c759', web:
 const KIND_ICON = { dupes: 'copy', similar: 'layers', junk: 'broom', temp: 'hourglass', empty: 'file', blurry: 'blur', old_large: 'archive', installers: 'package', dark: 'moon', empty_folders: 'folder', info: 'pie', chat: 'sparkles', web: 'download', cache: 'broom', phonetrash: 'trash', screenshot: 'monitor', lowq: 'minimize', screenrec: 'video' };
 
 export function dashboardView(root) {
-  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Storage insights</h1><p class="sub">Loading your NAS…</p></div>
+  const el = h(`<div class="view"><div class="page-head"><div class="grow"><h1>Storage</h1><p class="sub">Loading your NAS…</p></div>
     <button class="btn rescan">${icon('refresh')}Rescan</button></div>${scopeBanner()}<div class="body"></div></div>`);
   root.append(el);
   $('.rescan', el).onclick = () => api('/scan', {}).catch(fail);
@@ -31,7 +31,7 @@ export function dashboardView(root) {
     b.append(g);
 
     // Smart assistant
-    const ins = h(`<div class="card span2"><h3>Suggestions<span class="right muted">largest savings first</span></h3><div class="list"></div></div>`);
+    const ins = h(`<div class="card span2"><h2>Suggestions<span class="right muted">largest savings first</span></h2><div class="list"></div></div>`);
     const list = $('.list', ins);
     if (!tips.length) list.innerHTML = `<div class="empty" style="padding:30px">${icon('check')}<div>Your NAS looks clean. Nothing to suggest right now.</div></div>`;
     for (const t of tips.slice(0, 8)) {
@@ -42,7 +42,7 @@ export function dashboardView(root) {
     g.append(ins);
 
     // Volumes
-    const vols = h(`<div class="card"><h3>${icon('hdd')}Storage</h3><div class="col vlist" style="gap:14px"></div></div>`);
+    const vols = h(`<div class="card"><h2>${icon('hdd')}Storage</h2><div class="col vlist" style="gap:14px"></div></div>`);
     api('/browse?path=').then((d) => {
       for (const v of d.entries) {
         const du = v.disk;
@@ -56,7 +56,7 @@ export function dashboardView(root) {
 
     // Learned from previous deletions
     if (learned.length) {
-      const lc = h(`<div class="card span2"><h3>Based on your past cleanups</h3><div class="list"></div></div>`);
+      const lc = h(`<div class="card span2"><h2>Based on your past cleanups</h2><div class="list"></div></div>`);
       for (const t of learned) {
         $('.list', lc).append(h(`<a class="insight learned" href="${t.view}" style="color:inherit"><div class="ic">${icon(t.icon || 'zap')}</div>
           <div class="grow"><div class="t">${esc(t.title)}</div><div class="d">${esc(t.text)}</div></div>
@@ -68,12 +68,12 @@ export function dashboardView(root) {
 
     // By category
     const cats = s.by_cat.map((c) => ({ label: CAT_LABEL[c.cat] || c.cat, value: c.size, color: CAT_COLORS[c.cat], sub: `${num(c.count)} files`, onClick: () => (location.hash = `#/search?cat=${c.cat}&sort=size`) }));
-    const cc = h(`<div class="card"><h3>${icon('pie')}Space by type</h3></div>`);
+    const cc = h(`<div class="card"><h2>${icon('pie')}Space by type</h2></div>`);
     cc.append(donut(cats, { center: bytes(s.total_size), centerSub: 'total', fmt: bytes }));
     g.append(cc);
 
     // By extension: toggle size/count
-    const ext = h(`<div class="card"><h3>${icon('bars')}Top file extensions<span class="right"><span class="seg"><button class="on" data-m="size">Size</button><button data-m="count">Count</button></span></span></h3><div class="c"></div>
+    const ext = h(`<div class="card"><h2>${icon('bars')}Top file extensions<span class="right"><span class="seg"><button class="on" data-m="size">Size</button><button data-m="count">Count</button></span></span></h2><div class="c"></div>
       <a href="#/extensions" class="btn sm ghost" style="margin-top:10px">All file types ${icon('right')}</a></div>`);
     const drawExt = (m) => {
       const arr = [...s.by_ext].sort((a, b2) => b2[m] - a[m]).slice(0, 10);
@@ -85,7 +85,7 @@ export function dashboardView(root) {
     g.append(ext);
 
     // Size distribution
-    const hist = h(`<div class="card"><h3>${icon('bars')}File size distribution<span class="right"><span class="seg"><button class="on" data-m="count">Count</button><button data-m="size">Space</button></span></span></h3><div class="c"></div></div>`);
+    const hist = h(`<div class="card"><h2>${icon('bars')}File size distribution<span class="right"><span class="seg"><button class="on" data-m="count">Count</button><button data-m="size">Space</button></span></span></h2><div class="c"></div></div>`);
     const drawHist = (m) => {
       $('.c', hist).innerHTML = '';
       $('.c', hist).append(columns(s.size_hist.map((x) => ({ label: x.label, value: x[m], tipHtml: `<b>${x.label}</b><br>${num(x.count)} files · ${bytes(x.size)}` })), { fmt: m === 'size' ? bytes : num }));
@@ -95,12 +95,12 @@ export function dashboardView(root) {
     g.append(hist);
 
     // Treemap of top level folders
-    const tm = h(`<div class="card span2"><h3>${icon('grid')}Where your space goes<span class="right muted">top-level folders · click to open</span></h3></div>`);
+    const tm = h(`<div class="card span2"><h2>${icon('grid')}Where your space goes<span class="right muted">top-level folders · click to open</span></h2></div>`);
     tm.append(treemap(s.top_level.map((f, i) => ({ label: basename(f.path), value: f.size, sub: `${num(f.count)} files`, color: PALETTE[i % PALETTE.length], onClick: () => (location.hash = '#/files?path=' + encodeURIComponent(f.path)) })), { fmt: bytes, height: 300 }));
     g.append(tm);
 
     // Files by year
-    const yr = h(`<div class="card"><h3>${icon('calendar')}Files by year<span class="right"><span class="seg"><button class="on" data-m="size">Space</button><button data-m="count">Count</button></span></span></h3><div class="c"></div></div>`);
+    const yr = h(`<div class="card"><h2>${icon('calendar')}Files by year<span class="right"><span class="seg"><button class="on" data-m="size">Space</button><button data-m="count">Count</button></span></span></h2><div class="c"></div></div>`);
     const years = s.by_year.filter((y) => y.year > 1990);
     const drawYear = (m) => {
       $('.c', yr).innerHTML = '';
@@ -111,7 +111,7 @@ export function dashboardView(root) {
     g.append(yr);
 
     // Largest files
-    const lf = h(`<div class="card span2"><h3>${icon('hdd')}Largest files<span class="right"><a href="#/large" class="btn sm ghost">See all ${icon('right')}</a></span></h3><div></div></div>`);
+    const lf = h(`<div class="card span2"><h2>${icon('hdd')}Largest files<span class="right"><a href="#/large" class="btn sm ghost">See all ${icon('right')}</a></span></h2><div></div></div>`);
     const lfl = lf.lastElementChild;
     for (const f of s.largest.slice(0, 10)) {
       lfl.append(h(`<a class="list-row" style="color:inherit" href="#/files?path=${encodeURIComponent(f.dir)}"><span class="badge" style="background:${CAT_COLORS[f.cat]}22;color:${CAT_COLORS[f.cat]}">${esc(f.ext || '—')}</span>
@@ -120,7 +120,7 @@ export function dashboardView(root) {
     g.append(lf);
 
     // Largest folders
-    const tf = h(`<div class="card"><h3>${icon('folder')}Largest folders</h3></div>`);
+    const tf = h(`<div class="card"><h2>${icon('folder')}Largest folders</h2></div>`);
     tf.append(hbars(s.top_folders.slice(0, 10).map((f) => ({ label: shortPath(f.path), value: f.size, sub: `${num(f.count)} files`, onClick: () => (location.hash = '#/files?path=' + encodeURIComponent(f.path)) })), { fmt: bytes }));
     g.append(tf);
   }
