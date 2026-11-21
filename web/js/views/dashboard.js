@@ -1,4 +1,4 @@
-import { $, $$, ago, api, bytes, CAT_COLORS, esc, h, icon, num, on, poll, thumbUrl, toast } from '../core.js';
+import { $, $$, ago, api, bytes, CAT_COLORS, confirmBox, esc, h, icon, num, on, poll, runTask, thumbUrl, toast } from '../core.js';
 import { scopeBanner } from './categories.js';
 import { hasFeature } from '../features.js';
 import { lightbox } from '../lightbox.js';
@@ -37,6 +37,8 @@ export function dashboardView(root) {
     // Suggestions overlap; show individual estimates without adding them together.
     const suggestions = tips.filter(t => t.kind !== 'info').sort((a,b) => b.size-a.size).slice(0,4);
     $('.home-body',el).innerHTML = `
+      <section class="memories" hidden aria-labelledby="memories-title"><div class="section-title"><h2 id="memories-title">On this day</h2></div><div class="memory-row"></div></section>
+      <section class="freeup card" hidden aria-labelledby="freeup-title"></section>
       <div class="home-lead">
         <section class="recent-module" aria-labelledby="recent-title"><div class="section-title"><h2 id="recent-title">Recent photos</h2><a href="#/gallery">Show all ${icon('right')}</a></div><div class="recent-grid" aria-busy="true"><div class="recent-loading" role="status">Loading photos…</div></div></section>
         <section class="storage-module card" aria-labelledby="storage-title"><div class="section-title"><h2 id="storage-title">Storage</h2><a href="#/analytics" aria-label="View storage details">Details ${icon('right')}</a></div><div class="storage-ring" style="--storage-colors:${stops.length ? stops.join(',') : 'var(--fill) 0deg 360deg'}"><div><strong>${bytes(total)}</strong><span>in your library</span></div></div><div class="storage-legend">${sorted.slice(0,3).map(c => `<a href="#/search?cat=${encodeURIComponent(c.cat)}&sort=size"><span class="legend-dot" style="background:${CAT_COLORS[c.cat] || '#8e8e93'}"></span><span>${LABELS[c.cat] || esc(c.cat)}</span><b>${bytes(c.size)}</b></a>`).join('') || '<span class="muted">No files indexed yet</span>'}</div><p class="storage-note">Indexed files across your library locations.</p></section>
@@ -48,6 +50,8 @@ export function dashboardView(root) {
       <div class="home-lower"><section class="card review-list" ${hasFeature('cleanup')?'':'hidden'}><div class="section-title"><div><h2>Worth a look</h2><p>A few ways to organize your library.</p></div><a href="#/quickclean">Show all ${icon('right')}</a></div>${suggestions.length ? suggestions.map(t => `<a class="suggestion-row" href="${esc(t.view)}"><span class="suggestion-icon">${icon(TIP_ICONS[t.kind] || 'sparkles')}</span><div class="grow"><h3>${esc(t.title)}</h3><p>${esc(t.text)}</p></div><span class="suggestion-size">${bytes(t.size || 0)}<small>to review</small></span>${icon('right')}</a>`).join('') : `<div class="empty">${icon(s.total_files ? 'check' : 'scan')}<h3>${s.total_files ? 'All caught up' : 'Your library starts here'}</h3><p>${s.total_files ? 'New suggestions appear after a library scan.' : 'Refresh your library to find your photos and files.'}</p></div>`}<div class="review-footnote">${icon('info')}You choose what to keep. Nothing is selected automatically.</div></section>
       <section class="card locations-card"><div class="section-title"><h2>Locations</h2>${icon('hdd')}</div><div class="location-list"><p class="muted">Loading storage…</p></div><a class="location-link" href="#/files">Browse files ${icon('right')}</a></section></div>
       <footer class="home-footer"><span><span class="status-dot"></span>${s.last_scan ? `Updated ${ago(s.last_scan)}` : 'Waiting for the first scan'}${s.photos_pending ? ` · ${num(s.photos_pending)} photos awaiting analysis` : ''}</span><a href="#/settings">Library settings ${icon('right')}</a></footer>`;
+    memories(current);
+    if (hasFeature('cleanup')) freeUp(current);
     // Photo failure must not hide storage or review suggestions.
     api('/query', {filter:{cat:['image']},sort:'ts',order:'desc',limit:5,offset:0}).then(r => {
       if (disposed || current !== revision) return;
@@ -67,6 +71,31 @@ export function dashboardView(root) {
         return `<a class="location-row" href="#/files?path=${encodeURIComponent(v.path)}"><div class="row">${icon(v.name === 'Personal' ? 'users' : 'hdd')}<b class="grow">${esc(v.name)}</b>${icon('right')}</div><div class="location-meta">${num(v.count)} files <span>${bytes(v.size)}</span></div>${d ? `<div class="progress"><div style="width:${pct}%;${pct>90?'background:var(--warn)':''}"></div></div><p>${bytes(d.free)} available on this disk</p>` : ''}</a>`;
       }).join('') || '<p class="muted">No library locations configured.</p>';
     } catch { if (!disposed && current === revision) $('.location-list',el).innerHTML = '<p class="muted">Storage details are temporarily unavailable.</p>'; }
+  }
+  async function memories(current) {
+    let r;
+    try { r = await api('/memories'); } catch { return; }
+    if (disposed || current !== revision || !r.years?.length) return;
+    const row = $('.memory-row', el);
+    row.innerHTML = r.years.map((y, i) => `<button class="memory" data-i="${i}" aria-label="${y.years_ago} ${y.years_ago === 1 ? 'year' : 'years'} ago, ${y.items.length} photos">
+      <img src="${thumbUrl(y.items[0], 512)}" alt="" loading="lazy"><span class="memory-label"><b>${y.years_ago} ${y.years_ago === 1 ? 'year' : 'years'} ago</b><small>${y.year} · ${num(y.items.length)} ${y.items.length === 1 ? 'photo' : 'photos'}</small></span></button>`).join('');
+    $$('.memory', row).forEach((b) => (b.onclick = () => lightbox([...r.years[+b.dataset.i].items], 0, { onDeleted: load })));
+    $('.memories', el).hidden = false;
+  }
+  async function freeUp(current) {
+    let cats;
+    try { cats = (await api('/quickclean')).filter((c) => c.count > 0).sort((a, b) => b.size - a.size); } catch { return; }
+    if (disposed || current !== revision || !cats.length) return;
+    const total = cats.reduce((a, c) => a + c.size, 0), files = cats.reduce((a, c) => a + c.count, 0);
+    const box = $('.freeup', el);
+    box.innerHTML = `<div class="freeup-icon">${icon('sparkles')}</div><div class="grow"><h2 id="freeup-title">Free up ${bytes(total)}</h2>
+      <p>${cats.slice(0, 3).map((c) => `${esc(c.title)} · ${bytes(c.size)}`).join(' &nbsp;·&nbsp; ')}${cats.length > 3 ? ` and ${cats.length - 3} more` : ''}</p></div>
+      <a class="btn" href="#/quickclean">Review</a><button class="btn primary go">Clean up now</button>`;
+    $('.go', box).onclick = async () => {
+      if (!(await confirmBox('Clean up now?', `Move <b>${num(files)}</b> files (<b>${bytes(total)}</b>) to the Recycle bin: ${cats.map((c) => esc(c.title.toLowerCase())).join(', ')}. One copy of every duplicate is always kept, and you can restore anything from the Recycle bin.`, 'Clean up'))) return;
+      if (await runTask(api('/quickclean/run', { keys: cats.map((c) => c.key) }))) load();
+    };
+    box.hidden = false;
   }
   load(); const off=on('changed',load);
   return () => { disposed=true; off(); };

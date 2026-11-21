@@ -68,6 +68,8 @@ class Security:
             c.execute("BEGIN IMMEDIATE")
             yield c
             c.commit()
+            # Any change made here may switch two-step verification on or off: never answer from the old cache.
+            self._enabled_cache = (None, 0.0, False)
         except BaseException:
             c.rollback()
             raise

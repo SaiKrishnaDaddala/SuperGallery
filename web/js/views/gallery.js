@@ -1,6 +1,7 @@
 // Timeline of photos and videos: month and day sections, photos at their own shape, year scrubber, multi-select and lightbox.
-import { $, $$, api, bytes, confirmDelete, dur, esc, fail, h, icon, num, pickFolder, runTask, shortPath, thumbUrl } from '../core.js';
+import { $, $$, api, bytes, confirmDelete, dur, esc, fail, h, icon, num, pickFolder, runTask, shortPath, thumbUrl, toast } from '../core.js';
 import { lightbox } from '../lightbox.js';
+import { shareDialog } from '../shares.js';
 
 const PAGE = 300;
 
@@ -100,7 +101,7 @@ export function galleryView(root, params) {
         sec.append(day);
       }
       const t = h(`<div class="gtile${st.sel.has(it.id) ? ' sel' : ''}" data-i="${i}" role="button" tabindex="0" aria-label="${esc(it.name)}" aria-pressed="${st.sel.has(it.id)}" style="--ar:${ratio(it).toFixed(3)}"><img loading="lazy" src="${thumbUrl(it, st.tile > 220 ? 512 : 256)}" alt="">
-        <div class="ck">${icon('check')}</div>${it.cat === 'video' ? `<span class="vid">${icon('play')}${it.duration ? dur(it.duration) : bytes(it.size, 0)}</span>` : ''}</div>`);
+        <div class="ck">${icon('check')}</div>${it.fav ? `<span class="fav-mark" aria-label="Favourite">${icon('star')}</span>` : ''}${it.cat === 'video' ? `<span class="vid">${icon('play')}${it.duration ? dur(it.duration) : bytes(it.size, 0)}</span>` : ''}</div>`);
       const img = $('img', t);
       // Stored sizes can ignore camera rotation; the thumbnail is upright, so trust its shape once it loads.
       img.onload = () => { if (img.naturalWidth && img.naturalHeight) t.style.setProperty('--ar', Math.min(3, Math.max(0.33, img.naturalWidth / img.naturalHeight)).toFixed(3)); };
@@ -123,13 +124,17 @@ export function galleryView(root, params) {
     const size = [...st.sel.values()].reduce((a, x) => a + x.size, 0);
     const s = $('.selinfo', el);
     s.innerHTML = n ? `<b>${num(n)}</b><span class="muted">selected · ${bytes(size)}</span>
-      <button class="btn sm mv">${icon('move')}Move</button><button class="btn sm dl">${icon('download')}Download</button>
+      <button class="btn sm fv">${icon('star')}Favourite</button>${n <= 1000 ? `<button class="btn sm sh">${icon('upload')}Share link</button>` : ''}<button class="btn sm mv">${icon('move')}Move</button><button class="btn sm dl">${icon('download')}Download</button>
       <button class="btn sm danger del">${icon('trash')}Delete</button><button class="btn sm ghost icon clr" aria-label="Clear photo selection">${icon('x')}</button>` : '';
     if (!n) return;
     $('.clr', s).onclick = () => { st.sel.clear(); refreshSel(); };
     $('.del', s).onclick = async () => {
       const t = await confirmDelete({ ids: [...st.sel.keys()], count: n, size });
       if (t?.status === 'done') reset();
+    };
+    $('.sh', s)?.addEventListener('click', () => shareDialog([...st.sel.keys()]));
+    $('.fv', s).onclick = async () => {
+      try { await api('/favorites', { ids: [...st.sel.keys()], on: true }); toast(`Added ${num(n)} to favourites`); st.sel.forEach((x) => (x.fav = 1)); st.sel.clear(); refreshSel(); } catch (e) { fail(e); }
     };
     $('.mv', s).onclick = async () => {
       const dest = await pickFolder('Move selected to…');

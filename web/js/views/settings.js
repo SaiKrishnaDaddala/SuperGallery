@@ -5,6 +5,7 @@ import { libraryCare } from '../backup-card.js';
 import { featureCard } from '../features.js';
 import { networkCard } from '../network.js';
 import { updatesCard } from '../updates.js';
+import { sharesCard } from '../shares.js';
 
 const KEYS = [
   ['↑ ↓ / Home / End / PgUp / PgDn', 'Move focus (Shift = extend selection)'], ['Enter', 'Open folder / file'], ['Backspace', 'Parent folder'],
@@ -23,6 +24,7 @@ export function settingsView(root) {
   const featuresHost=document.createElement('div');featuresHost.className='features-host';$('.security-host',el).after(featuresHost);const stopFeatures=featureCard(featuresHost);
   const careHost=document.createElement('div');careHost.className='care-host';featuresHost.after(careHost);const stopCare=libraryCare(careHost);
   const updatesHost=document.createElement('div');updatesHost.className='features-host';featuresHost.after(updatesHost);const stopUpdates=updatesCard(updatesHost);
+  const sharesHost=document.createElement('div');sharesHost.className='features-host';updatesHost.after(sharesHost);const stopShares=sharesCard(sharesHost);
   $('.scan', el).onclick = () => api('/scan', {}).then(() => poll(true)).catch(fail);
   let signature = '';
   const showAppearance = () => {
@@ -82,7 +84,7 @@ export function settingsView(root) {
   };
   draw();
   const offStatus = on('status', draw), offAppearance = on('appearance', showAppearance);
-  return () => { offStatus(); offAppearance(); stopSecurity(); stopCare();stopUpdates(); stopFeatures(); stopNetwork(); };
+  return () => { offStatus(); offAppearance(); stopSecurity(); stopCare();stopUpdates(); stopShares(); stopFeatures(); stopNetwork(); };
 }
 
 async function changePassword() {

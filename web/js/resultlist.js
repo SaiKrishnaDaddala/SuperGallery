@@ -1,9 +1,10 @@
 // Server-paged, virtualised list of indexed files with "select all N matching" bulk actions.
 import {
   $, $$, api, avatar, bytes, confirmDelete, contextMenu, date, dur, dirname, esc, fail, fileIcon, h, icon, num, pickFolder, rawUrl,
-  runTask, shortPath, state, THUMBABLE, thumbUrl,
+  runTask, shortPath, state, THUMBABLE, thumbUrl, toast,
 } from './core.js';
 import { lightbox } from './lightbox.js';
+import { shareDialog } from './shares.js';
 
 const ROW = 38;
 const PAGE = 400;
@@ -120,13 +121,17 @@ export function resultList({ filter = {}, sort = 'size', order = 'desc', mode = 
       <b>${num(n)}</b> selected <span class="muted">· ${bytes(selSize())}</span>
       ${!st.all && st.total > n ? `<button class="btn sm ghost s-all">${icon('selectAll')}Select all ${num(st.total)} matching</button>` : ''}
       <span class="grow"></span>
-      <button class="btn sm s-move">${icon('move')}Move to…</button><button class="btn sm s-copy">${icon('copy')}Copy to…</button>
+      <button class="btn sm s-fav">${icon('star')}Favourite</button>${n <= 1000 ? `<button class="btn sm s-share">${icon('upload')}Share link</button>` : ''}<button class="btn sm s-move">${icon('move')}Move to…</button><button class="btn sm s-copy">${icon('copy')}Copy to…</button>
       ${n <= 2000 ? `<button class="btn sm s-dl">${icon('download')}Download</button>` : ''}
       <button class="btn sm danger s-del">${icon('trash')}Delete ${num(n)}</button><button class="btn sm ghost icon s-clr" title="Clear selection">${icon('x')}</button></div>`;
     $('.s-all', slot)?.addEventListener('click', () => { st.all = true; st.excl.clear(); st.sel.clear(); paint(); status(); });
     $('.s-clr', slot).onclick = () => api_.clear();
     $('.s-del', slot).onclick = () => api_.deleteSelected();
     $('.s-move', slot).onclick = () => transfer(false);
+    $('.s-share', slot)?.addEventListener('click', async () => shareDialog(await selectedIds()));
+    $('.s-fav', slot).onclick = async () => {
+      try { const r = await api('/favorites', { ids: await selectedIds(), on: true }); toast(`Added ${num(r.count)} to favourites`); api_.clear(); api_.reload(); } catch (e) { fail(e); }
+    };
     $('.s-copy', slot).onclick = () => transfer(true);
     $('.s-dl', slot)?.addEventListener('click', async () => {
       const ids = await selectedIds();

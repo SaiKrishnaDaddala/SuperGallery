@@ -67,6 +67,30 @@ def init():
             "emptied" not in {r[1] for r in c.execute("PRAGMA table_info(people)")}:
         c.execute("ALTER TABLE people ADD COLUMN emptied REAL")
     c.executescript(SCHEMA)
+    if db.kv_get("people_prototypes") != PROTOTYPES:
+        refresh_prototypes()
+        db.kv_set("people_prototypes", PROTOTYPES)
+
+
+PROTOTYPES = "mean-v1"
+MEAN_CAP = 200  # a person's average follows new faces; after this many it moves slowly but never freezes
+
+
+def _mean(vectors: np.ndarray) -> np.ndarray:
+    v = vectors.mean(axis=0)
+    return (v / max(float(np.linalg.norm(v)), 1e-8)).astype("float32")
+
+
+def refresh_prototypes():
+    """Recompute every person's matching vector as the average of their current faces (once, after upgrading)."""
+    with _lock, db.tx() as c:
+        rows = c.execute("SELECT person_id, embedding FROM faces WHERE ignored=0 AND person_id IS NOT NULL ORDER BY person_id").fetchall()
+        groups: dict = {}
+        for pid, emb in rows:
+            if len(emb) == 512:
+                groups.setdefault(pid, []).append(np.frombuffer(emb, dtype="float32"))
+        c.executemany("UPDATE people SET prototype=? WHERE id=?", [(_mean(np.stack(v)).tobytes(), pid) for pid, v in groups.items()])
+    return len(groups)
 
 
 def forget_emptied(days):
@@ -172,7 +196,7 @@ def detect(path):
 
 
 def choose_person(feature, prototypes, ids, excluded=()):
-    """Conservative first-prototype matching, with an ambiguity margin and no same-photo merges."""
+    """Conservative matching against each person's average face, with an ambiguity margin and no same-photo merges."""
     if not len(ids):
         return None
     scores = prototypes @ feature
@@ -220,6 +244,12 @@ def index(task, owners=None, retry=False):
                     if person is None:
                         person = c.execute("INSERT INTO people(owner,prototype,created) VALUES(?,?,?)",
                             (row["owner"], feature.tobytes(), time.time())).lastrowid
+                    else:
+                        # Move the person's average toward this face, so groups get better as they grow.
+                        k = ids.index(person)
+                        n = min(MEAN_CAP, c.execute("SELECT COUNT(*) FROM faces WHERE person_id=? AND ignored=0", (person,)).fetchone()[0])
+                        vectors[k] = _mean(np.stack([vectors[k] * max(n, 1), feature]))
+                        c.execute("UPDATE people SET prototype=? WHERE id=?", (vectors[k].tobytes(), person))
                     used.add(person)
                     c.execute("INSERT INTO faces(file_id,person_id,embedding,crop,score) VALUES(?,?,?,?,?)",
                         (row["id"], person, feature.tobytes(), crop, confidence))

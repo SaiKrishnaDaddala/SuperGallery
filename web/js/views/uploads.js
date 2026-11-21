@@ -1,4 +1,4 @@
-import { $, $$, api, bytes, esc, fail, h, icon, pickFolder, poll, shortPath, state } from '../core.js';
+import { $, $$, api, bytes, esc, fail, h, icon, pickFolder, poll, shortPath, state, toast } from '../core.js';
 
 const queue=[];let destination='',working=false,paused=false;const listeners=new Set();
 const notify=()=>listeners.forEach(fn=>fn());
@@ -24,7 +24,7 @@ async function pump(){if(working||paused)return;working=true;try{for(const entry
 window.addEventListener('beforeunload',e=>{if(working){e.preventDefault();e.returnValue='';}});
 
 export function uploadsView(root){
-  const el=h(`<div class="view upload-view"><div class="page-head"><div class="grow"><h1>Upload</h1><p>Photos, videos and files. Pick up where a connection left off.</p></div></div><section class="card upload-drop"><div class="upload-symbol">${icon('upload')}</div><h2>A safe place for new memories.</h2><p class="muted">Choose a folder, then select files from your phone or computer.</p><button class="btn destination">${icon('folder')}Choose destination</button><div class="row wrap upload-choices"><button class="btn primary choose">Choose files</button><button class="btn camera">Take a photo</button><button class="btn pause">Pause uploads</button></div><input class="file-input" type="file" multiple hidden><input class="camera-input" type="file" accept="image/*" capture="environment" hidden><p class="muted upload-note">Keep this page open and your phone awake during uploads. If the page closes, select the same files again to resume in this signed-in session. Partial uploads expire after seven days. Existing originals are never overwritten.</p></section><div class="upload-queue" aria-live="polite"></div></div>`);root.append(el);
+  const el=h(`<div class="view upload-view"><div class="page-head"><div class="grow"><h1>Upload</h1><p>Photos, videos and files. Pick up where a connection left off.</p></div></div><section class="card upload-drop"><div class="upload-symbol">${icon('upload')}</div><h2>A safe place for new memories.</h2><p class="muted">Choose a folder, then select files from your phone or computer.</p><button class="btn destination">${icon('folder')}Choose destination</button><div class="row wrap upload-choices"><button class="btn primary choose">Choose files</button><button class="btn camera">Take a photo</button><button class="btn pause">Pause uploads</button></div><input class="file-input" type="file" multiple hidden><input class="camera-input" type="file" accept="image/*" capture="environment" hidden><p class="muted upload-note">Keep this page open and your phone awake during uploads. If the page closes, select the same files again to resume in this signed-in session. Partial uploads expire after seven days. Existing originals are never overwritten.</p></section><section class="card backup-card"><div class="freeup-icon">${icon('images')}</div><div class="grow"><h2>Back up this phone</h2><p class="muted backup-note"></p></div><button class="btn backup-dest">${icon('folder')}<span>Choose backup folder</span></button><button class="btn primary backup-go">Choose photos to back up</button><input class="backup-input" type="file" accept="image/*,video/*" multiple hidden></section><div class="upload-queue" aria-live="polite"></div></div>`);root.append(el);
   function draw(){const dest=$('.destination',el);dest.innerHTML=icon('folder')+esc(destination?shortPath(destination):'Choose destination');$('.pause',el).textContent=paused?'Resume uploads':'Pause uploads';$('.upload-queue',el).innerHTML=queue.map((e,i)=>`<article class="upload-entry"><div class="row"><strong class="ellipsis grow">${esc(e.file.name)}</strong><span>${esc(e.status)}</span></div><progress max="${Math.max(1,e.file.size)}" value="${e.done}"></progress><div class="row wrap"><small class="grow">${bytes(e.done)} of ${bytes(e.file.size)}${e.error?' · '+esc(e.error):''}</small>${e.status==='error'?`<button class="btn sm retry" data-entry="${i}">Retry & resume</button>`:''}${['error','paused','queued'].includes(e.status)?`<button class="btn sm cancel" data-entry="${i}">Remove from queue</button>`:''}</div></article>`).join('');
     $$('.retry',el).forEach(b=>b.onclick=()=>{queue[+b.dataset.entry].status='queued';paused=false;pump();draw();});
     $$('.cancel',el).forEach(b=>b.onclick=async()=>{const e=queue[+b.dataset.entry];if(e.id)try{await api('/uploads/'+e.id+'/cancel',{});}catch(error){fail(error);return;}e.status='cancelled';draw();});
@@ -33,5 +33,27 @@ export function uploadsView(root){
   async function choose(camera=false){if(!destination){const path=await pickFolder('Upload to a folder');if(!path)return;destination=path;draw();}$(camera?'.camera-input':'.file-input',el).click();}
   $('.choose',el).onclick=()=>choose();$('.camera',el).onclick=()=>choose(true);
   for(const selector of ['.file-input','.camera-input'])$(selector,el).onchange=e=>{for(const file of e.target.files){if(!queue.some(x=>x.file.name===file.name&&x.file.size===file.size&&x.file.lastModified===file.lastModified&&x.destination===destination&&x.status!=='cancelled'))queue.push({file,destination,status:'queued',done:0});}e.target.value='';draw();pump();};
-  $('.pause',el).onclick=()=>{paused=!paused;if(!paused)pump();draw();};listeners.add(draw);draw();return()=>listeners.delete(draw);
+  $('.pause',el).onclick=()=>{paused=!paused;if(!paused)pump();draw();};listeners.add(draw);draw();
+  // Phone backup: pick photos from the gallery; only the ones not already on the NAS are uploaded.
+  const saved=()=>{try{return JSON.parse(localStorage.getItem('sg-backup')||'{}');}catch{return {};}};
+  const remember=v=>{try{localStorage.setItem('sg-backup',JSON.stringify({...saved(),...v}));}catch{/* private mode */}};
+  const backupNote=()=>{const b=saved();$('.backup-dest span',el).textContent=b.dest?shortPath(b.dest):'Choose backup folder';
+    $('.backup-note',el).textContent=b.at?`Last backup ${new Date(b.at).toLocaleString(undefined,{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}: ${b.sent} new, ${b.skipped} already on the NAS. Open this page and pick your recent photos again to continue.`
+      :'Pick photos and videos from this phone. Ones already on the NAS are skipped, so you can simply select everything since your last backup. Browsers cannot back up automatically in the background.';};
+  const pickDest=async()=>{const p=await pickFolder('Back up this phone to…',saved().dest||'');if(p){remember({dest:p});backupNote();}return p;};
+  $('.backup-dest',el).onclick=pickDest;
+  $('.backup-go',el).onclick=async()=>{if(!saved().dest&&!(await pickDest()))return;$('.backup-input',el).click();};
+  $('.backup-input',el).onchange=async e=>{
+    const files=[...e.target.files];e.target.value='';if(!files.length)return;
+    const dest=saved().dest;let present=new Set();
+    try{for(let i=0;i<files.length;i+=5000){const r=await api('/uploads/check',{destination:dest,files:files.slice(i,i+5000).map(f=>({name:f.name,size:f.size}))});r.present.forEach(k=>present.add(i+k));}}
+    catch(err){fail(err);return;}
+    const fresh=files.filter((f,i)=>!present.has(i)&&!queue.some(x=>x.file.name===f.name&&x.file.size===f.size&&x.destination===dest&&x.status!=='cancelled'));
+    fresh.forEach(file=>queue.push({file,destination:dest,status:'queued',done:0}));
+    remember({at:Date.now(),sent:fresh.length,skipped:present.size});backupNote();
+    toast(fresh.length?`Backing up ${fresh.length} new ${fresh.length===1?'item':'items'} · ${present.size} already on your NAS`:`All ${files.length} are already on your NAS`,'ok');
+    paused=false;pump();draw();
+  };
+  backupNote();
+  return()=>listeners.delete(draw);
 }

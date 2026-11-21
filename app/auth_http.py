@@ -82,9 +82,11 @@ def install(app):
             if security.enabled() and not private_transport(request) and path != "/api/auth":
                 return JSONResponse({"detail": "Two-step verification requires HTTPS. Open the secure app address.", "secure_url": secure_url(request)}, status_code=426, headers={"Cache-Control":"no-store"})
             request.state.session = security.session(request.cookies.get(COOKIE), touch=path not in ("/api/auth", "/api/status", "/api/people/status", "/api/search/status", "/api/visual/status", "/api/ocr/status") and not path.startswith("/api/tasks/"))
-            if path not in public and not request.state.session:
+            # Share links: read-only, GET only, each request checks its own link (see shares.py).
+            shared = path.startswith("/api/public/") and request.method in ("GET", "HEAD")
+            if path not in public and not shared and not request.state.session:
                 return JSONResponse({"detail":"Login required"}, status_code=401, headers={"Cache-Control":"no-store"})
-            if path not in public:
+            if path not in public and not shared:
                 from . import features
                 try:
                     features.boundary(path)
@@ -99,7 +101,10 @@ def install(app):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        if path in ("/", "/static/offline.html"):
+        if path.startswith("/s/"):
+            response.headers["Content-Security-Policy"] = CSP + "frame-ancestors 'none'"
+            response.headers["Referrer-Policy"] = "no-referrer"
+        elif path in ("/", "/static/offline.html"):
             ancestors = ["'self'"]
             for origin in os.getenv('FRAME_ANCESTORS', '').split(','):
                 origin = origin.strip()

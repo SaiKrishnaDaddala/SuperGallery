@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Shared photos</title>
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
+  <link rel="stylesheet" href="/static/css/share.css">
+</head>
+<body>
+  <header class="bar"><img src="/static/icons/icon.svg" alt="" width="28" height="28"><div class="grow"><h1>Shared photos</h1><p class="meta" aria-live="polite">Loading…</p></div></header>
+  <main><div class="grid" aria-label="Shared photos"></div></main>
+  <dialog class="viewer" aria-label="Photo">
+    <div class="top"><span class="name"></span><span class="pos"></span><a class="icon dl" aria-label="Download" title="Download">&#x2193;</a><button class="icon close" aria-label="Close" title="Close">&#x2715;</button></div>
+    <button class="nav prev" aria-label="Previous">&#x2039;</button><div class="stage"></div><button class="nav next" aria-label="Next">&#x203A;</button>
+  </dialog>
+  <footer>Shared from a private SuperGallery library. This link stops working when it expires.</footer>
+  <script type="module" src="/static/js/share.js"></script>
+</body>
+</html>

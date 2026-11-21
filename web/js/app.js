@@ -5,6 +5,7 @@ import { albumsView } from './views/albums.js';
 import { uploadsView } from './views/uploads.js';
 import { categoriesView } from './views/categories.js';
 import { exploreView } from './views/explore.js';
+import { favoritesView } from './views/favorites.js';
 import { usersView } from './views/users.js';
 import { quickcleanView } from './views/quickclean.js';
 import { dupfoldersView } from './views/dupfolders.js';
@@ -43,10 +44,10 @@ const ROUTES = {
   dashboard: dashboardView, analytics: analyticsView, files: filesView, gallery: galleryView, search: searchView, large: searchView,
   duplicates: duplicatesView, similar: similarView, categories: categoriesView, users: usersView, people: peopleView,
   quickclean: quickcleanView, dupfolders: dupfoldersView, rules: rulesView, extensions: extensionsView, cleanup: cleanupView,
-  trash: trashView, organize: organizeView, settings: settingsView, albums: albumsView, uploads: uploadsView, explore: exploreView,
+  trash: trashView, organize: organizeView, settings: settingsView, albums: albumsView, uploads: uploadsView, explore: exploreView, favorites: favoritesView,
 };
 const NAV = [
-  ['', [['dashboard', 'Home', 'home'], ['gallery', 'Photos', 'images'], ['explore', 'Explore', 'compass'], ['people', 'People', 'user'], ['albums', 'Albums', 'bookmark'], ['files', 'Files', 'folder']]],
+  ['', [['dashboard', 'Home', 'home'], ['gallery', 'Photos', 'images'], ['explore', 'Explore', 'compass'], ['people', 'People', 'user'], ['albums', 'Albums', 'bookmark'], ['favorites', 'Favourites', 'star'], ['files', 'Files', 'folder']]],
   ['Free up space', [['quickclean', 'Clean up', 'sparkles'], ['duplicates', 'Duplicates', 'copy', 'dup'], ['similar', 'Similar photos', 'layers', 'sim'], ['large', 'Large files', 'hdd'], ['extensions', 'File types', 'fileText']]],
   ['More tools', [['categories', 'Collections', 'tag'], ['dupfolders', 'Duplicate folders', 'folder'], ['cleanup', 'Cleanup suggestions', 'broom'], ['organize', 'Organize files', 'wand'], ['rules', 'Automation', 'refresh'], ['users', 'Library users', 'users'], ['search', 'Advanced search', 'search']]],
 ];

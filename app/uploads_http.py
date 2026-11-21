@@ -58,6 +58,31 @@ class Start(BaseModel):
     fingerprint:str=Field(pattern=r'^[a-f0-9]{64}$')
 
 
+class Candidate(BaseModel):
+    name:str=Field(min_length=1,max_length=240)
+    size:int=Field(ge=0,le=100*1024**3)
+
+
+class Check(BaseModel):
+    destination:str=Field(min_length=1,max_length=4096)
+    files:list[Candidate]=Field(max_length=5000)
+
+
+@router.post('/check')
+def check(body:Check):
+    """Phone backup: which of these files the destination's owner already has on the NAS (same name and size)."""
+    from . import db
+    destination=safe_path(body.destination)
+    owner=scope.owner_of(destination.rstrip('/')+'/-')  # the folder's owner, also when it is the home folder itself
+    names=sorted({f.name for f in body.files})
+    have=set()
+    for i in range(0,len(names),900):
+        part=names[i:i+900]
+        have.update((r[0],r[1]) for r in db.conn().execute(
+            f"SELECT name,size FROM files WHERE owner=? AND name IN ({','.join('?'*len(part))})",[owner,*part]))
+    return {'present':[i for i,f in enumerate(body.files) if (f.name,f.size) in have],'owner':owner}
+
+
 @router.post('')
 def start(body:Start,request:Request):
     name=body.name

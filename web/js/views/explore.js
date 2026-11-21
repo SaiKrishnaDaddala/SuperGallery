@@ -8,11 +8,13 @@ const faceImage = (id) => `/api/faces/${id}/image`;
 
 export function exploreView(root, params, sub = []) {
   if (sub[0] === 'things') return sub[1] ? thingView(root, decodeURIComponent(sub[1])) : thingsView(root);
+  if (sub[0] === 'places') return sub[1] ? placeView(root, decodeURIComponent(sub[1])) : placesView(root);
   const el = h(`<div class="view explore-view">
     <div class="page-head"><div class="grow"><h1>Explore</h1><p>Find photos by the people, things and kinds of pictures in them.</p></div></div>
     ${scopeBanner()}
     <section class="ex-section ex-people" hidden><div class="section-title"><h2>People</h2><a href="#/people">View all${icon('right')}</a></div><div class="ex-faces"></div></section>
     <section class="ex-section ex-things" hidden><div class="section-title"><h2>Things</h2><a href="#/explore/things">View all${icon('right')}</a></div><div class="ex-chips"></div></section>
+    <section class="ex-section ex-places" hidden><div class="section-title"><h2>Places</h2><a href="#/explore/places">View all${icon('right')}</a></div><div class="ex-chips"></div></section>
     <section class="ex-section ex-cats"><div class="section-title"><h2>Collections</h2><a href="#/categories">View all${icon('right')}</a></div>
       <div class="ex-grid"><div class="list-skel grid">${'<div></div>'.repeat(8)}</div></div></section>
   </div>`);
@@ -52,8 +54,16 @@ export function exploreView(root, params, sub = []) {
       : `<div class="empty">${icon('images')}<div>${r.pending ? 'Photos are still being sorted into collections.' : 'Nothing to show yet.'}</div></div>`;
   }
 
-  people(); things(); collections();
-  const off = on('changed', () => { people(); things(); collections(); });
+  async function placesRow() {
+    let r;
+    try { r = await api('/places?limit=12'); } catch { return; }
+    if (!alive || !r.places?.length) return;
+    $('.ex-places .ex-chips', el).innerHTML = placeTiles(r.places);
+    $('.ex-places', el).hidden = false;
+  }
+
+  people(); things(); placesRow(); collections();
+  const off = on('changed', () => { people(); things(); placesRow(); collections(); });
   return () => { alive = false; off(); };
 }
 
@@ -91,6 +101,45 @@ function thingView(root, label) {
   $('.thing-title', el).textContent = label.charAt(0).toUpperCase() + label.slice(1);
   root.append(el);
   const list = resultList({ filter: { tag: label }, sort: 'ts', order: 'desc', mode: 'grid', id: 'things', empty: `No photos of ${label} yet` });
+  el.append(list.el);
+  return () => list.destroy();
+}
+
+const placeTiles = (places) => places.map((p) => `<a class="ex-thing ex-place" href="#/explore/places/${encodeURIComponent(p.key)}" title="${esc([p.name, p.area].filter(Boolean).join(', '))}">
+  ${p.cover ? `<img loading="lazy" alt="" src="/api/thumb?id=${p.cover}&s=256" data-fallback="hide">` : ''}<span>${esc(p.name)}</span><small>${num(p.count)}</small></a>`).join('');
+
+// Every place photos were taken, from their GPS tags.
+function placesView(root) {
+  const el = h(`<div class="view explore-view">
+    <div class="page-head"><a class="btn icon ghost" href="#/explore" aria-label="Back to Explore">${icon('left')}</a><div class="grow"><h1>Places</h1>
+      <p>Named on your NAS from the location saved in each photo. Nothing is sent to a map service.</p></div></div>
+    ${scopeBanner()}<div class="ex-chips"><div class="list-skel grid">${'<div></div>'.repeat(12)}</div></div></div>`);
+  root.append(el);
+  let alive = true;
+  const load = async () => {
+    let r;
+    try { r = await api('/places?limit=300'); } catch (e) {
+      $('.ex-chips', el).innerHTML = `<div class="empty">${icon('alert')}<div>Couldn’t load places.</div><div class="muted small">${esc(e.message)}</div></div>`;
+      return;
+    }
+    if (!alive) return;
+    $('.ex-chips', el).innerHTML = r.places.length ? placeTiles(r.places)
+      : `<div class="empty">${icon('images')}<div>No places yet. Photos with a saved location appear here after the next library scan.</div></div>`;
+  };
+  load();
+  const off = on('changed', load);
+  return () => { alive = false; off(); };
+}
+
+function placeView(root, key) {
+  const [town, region, country] = (key.split('|').concat(['', '', ''])).slice(0, 3);
+  const el = h(`<div class="view fill">
+    <div class="page-head"><a class="btn icon ghost" href="#/explore/places" aria-label="Back to places">${icon('left')}</a>
+      <div class="grow"><h1 class="place-title"></h1><p class="place-area"></p></div></div>${scopeBanner()}</div>`);
+  $('.place-title', el).textContent = town || region || country;
+  $('.place-area', el).textContent = [town ? region : '', country].filter(Boolean).join(', ');
+  root.append(el);
+  const list = resultList({ filter: { place: key }, sort: 'ts', order: 'desc', mode: 'grid', id: 'places', empty: 'No photos from this place' });
   el.append(list.el);
   return () => list.destroy();
 }

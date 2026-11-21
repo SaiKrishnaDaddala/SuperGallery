@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.7.0 — 2026-11-22
+
+- Favourites: a star in the viewer (or press F) and Favourite in every selection bar; a Favourites page in the menu, and a small star on favourite photos in the timeline.
+- On this day: Home shows photos and videos taken on today's date in earlier years (screenshots, forwards and documents are left out).
+- Free up space: Home sums up what Clean up can remove and offers Clean up now; everything goes to the Recycle bin and one copy of every duplicate is always kept.
+- Places: where photos were taken, read from their GPS tags and named on the NAS from a bundled GeoNames town list (towns of 5,000+ people). Places appear in Explore and on their own pages, and typing a town in search finds its photos. No map service or network call is used; only the GPS block is read, not the image.
+- People: each person is matched against the average of all their faces, updated as faces join, instead of the first face only, so slowly changing faces (children growing up, different light) stay in one group. Existing groups get their average once after the update.
+- Share links: select photos or videos and choose Share link to get a read-only page that works without signing in for 1 day, 1 week or 30 days. Only a fingerprint of each link is stored; a link shows only the files picked, never folder paths; deleted files drop out; Settings → Shared links lists links and turns them off. Links work only where SuperGallery is reachable.
+- Security: turning two-step verification on or off now takes effect for the very next request (2.6.0 could keep the old answer for up to two seconds on fast consecutive changes).
+- Phones and tablets: the File types table keeps Type, Files, Size and Open on small screens, and the viewer's top bar no longer wraps.
+- A user guide (docs/USER_GUIDE.md) walks through every page.
+- Phone backup: the Upload page can back up photos and videos picked from a phone, skipping the ones the person already has on the NAS (same name and size), and remembers the folder and the last backup. Browsers cannot back up automatically in the background.
+
 ## 2.6.0 — 2026-11-21
 
 - New look in the style of Google Photos and Drive: a top bar with a large search box, a shorter sidebar (Home, Photos, Explore, People, Albums, Files; Free up space; More tools), an Upload button, pages on a white sheet, pill buttons, quieter titles and one style for every selection bar, dialog, menu and message. Dark mode follows the same design.

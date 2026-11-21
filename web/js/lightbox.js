@@ -13,6 +13,7 @@ export function lightbox(items, index = 0, { onDeleted, onClose, raw = rawUrl, t
   let showInfo = !readOnly && localStorage.getItem('lb-info') === '1';
   const el = h(`<dialog class="lightbox" aria-label="Media preview"><div class="lb-stage">
       <div class="lb-top"><div class="grow ellipsis name"></div><span class="pos muted"></span>
+        <button class="btn sm fav" title="Favourite (F)" aria-label="Add to favourites" aria-pressed="false">${icon('star')}</button>
         <button class="btn sm share" title="Share" aria-label="Share">${icon('upload')}</button>
         <button class="btn sm inf" title="Info (i)" aria-label="Info">${icon('info')}</button>
         <a class="btn sm dl" title="Download" aria-label="Download">${icon('download')}</a>
@@ -28,6 +29,13 @@ export function lightbox(items, index = 0, { onDeleted, onClose, raw = rawUrl, t
     const it = items[i];
     if (!it) return close();
     $('.name', el).textContent = it.name;
+    const fav = $('.fav', el);
+    if (fav) {
+      fav.hidden = !it.id;
+      fav.classList.toggle('on', !!it.fav);
+      fav.setAttribute('aria-pressed', String(!!it.fav));
+      fav.setAttribute('aria-label', it.fav ? 'Remove from favourites' : 'Add to favourites');
+    }
     $('.pos', el).textContent = `${i + 1} / ${items.length}`;
     $('.dl', el).href = raw(it, true);
     const m = $('.media', el);
@@ -65,6 +73,15 @@ export function lightbox(items, index = 0, { onDeleted, onClose, raw = rawUrl, t
   };
   const go = (d) => { i = (i + d + items.length) % items.length; show(); };
   const close = () => { if (closed) return; closed = true; el.close(); el.remove(); document.removeEventListener('keydown', key, true); previous?.focus(); onClose?.(); };
+  const toggleFav = async () => {
+    const it = items[i];
+    if (!it?.id || readOnly) return;
+    const on = !it.fav;
+    try { await api('/favorites', { ids: [it.id], on }); } catch (e) { return fail(e); }
+    it.fav = on ? 1 : 0;
+    toast(on ? 'Added to favourites' : 'Removed from favourites');
+    show();
+  };
   const del = async () => {
     const it = items[i];
     const t = await confirmDelete({ ids: it.id ? [it.id] : undefined, paths: it.id ? undefined : [it.path], count: 1, size: it.size });
@@ -83,6 +100,7 @@ export function lightbox(items, index = 0, { onDeleted, onClose, raw = rawUrl, t
     else if (e.key === 'ArrowLeft') go(-1);
     else if (e.key === 'Delete' && !readOnly) del();
     else if (e.key === 'i' && !readOnly) $('.inf', el).click();
+    else if (e.key === 'f' && !readOnly) toggleFav();
     else return;
     e.preventDefault(); e.stopPropagation();
   };
@@ -90,10 +108,11 @@ export function lightbox(items, index = 0, { onDeleted, onClose, raw = rawUrl, t
   $('.next', el).onclick = () => go(1);
   $('.close', el).onclick = close;
   $('.del', el).onclick = del;
+  $('.fav', el).onclick = toggleFav;
   $('.share',el).onclick=async()=>{const it=items[i],button=$('.share',el);try{button.disabled=true;if(navigator.share&&it.size<=50*1024*1024){const response=await fetch(rawUrl(it));if(!response.ok)throw new Error('Could not prepare the file for sharing.');const file=new File([await response.blob()],it.name,{type:response.headers.get('content-type')||''});if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:it.name});return;}}await navigator.clipboard.writeText(new URL(rawUrl(it),location.origin).href);toast('Private NAS link copied. The recipient needs NAS access and a SuperGallery login.');}catch(e){if(e.name!=='AbortError')fail(e);}finally{button.disabled=false;}};
   $('.inf', el).onclick = () => { showInfo = !showInfo; localStorage.setItem('lb-info', showInfo ? '1' : '0'); show(); };
   if (items.length < 2) { $('.prev', el).remove(); $('.next', el).remove(); }
-  if (readOnly) ['.del', '.share', '.inf'].forEach((s) => $(s, el).remove());
+  if (readOnly) ['.del', '.share', '.inf', '.fav'].forEach((s) => $(s, el).remove());
   document.addEventListener('keydown', key, true);
   document.body.append(el);
   containDialogFocus(el);

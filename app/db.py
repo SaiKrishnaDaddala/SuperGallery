@@ -95,13 +95,19 @@ def tx():
 
 
 MIGRATIONS = {
-    "files": [("owner", "TEXT"), ("make", "TEXT"), ("sat", "REAL"), ("kind", "TEXT"), ("duration", "REAL")],
+    "files": [("owner", "TEXT"), ("make", "TEXT"), ("sat", "REAL"), ("kind", "TEXT"), ("duration", "REAL"),
+              ("lat", "REAL"), ("lon", "REAL"), ("place", "TEXT"), ("geo", "INTEGER")],
     "trash": [("owner", "TEXT"), ("cat", "TEXT"), ("kind", "TEXT")],
 }
 
 EXTRA = """
 CREATE INDEX IF NOT EXISTS ix_files_owner ON files(owner, hash);
 CREATE INDEX IF NOT EXISTS ix_files_kind ON files(kind, owner);
+CREATE INDEX IF NOT EXISTS ix_files_place ON files(place) WHERE place IS NOT NULL;
+CREATE TABLE IF NOT EXISTS favorites(file_id INTEGER PRIMARY KEY, added REAL NOT NULL);
+CREATE TRIGGER IF NOT EXISTS remove_deleted_favorite AFTER DELETE ON files BEGIN
+ DELETE FROM favorites WHERE file_id=OLD.id;
+END;
 CREATE TABLE IF NOT EXISTS deletion_log(
   ts REAL NOT NULL, owner TEXT, cat TEXT, kind TEXT, ext TEXT, dir TEXT, size INTEGER, reason TEXT
 );

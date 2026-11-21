@@ -23,6 +23,7 @@
   <a href="#quick-start">Install</a> ·
   <a href="#features">Features</a> ·
   <a href="#screenshots">Screenshots</a> ·
+  <a href="docs/USER_GUIDE.md">User guide</a> ·
   <a href="docs/UPGRADING.md">Upgrade</a> ·
   <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new?template=bug.yml">Report a bug</a> ·
   <a href="https://github.com/SaiKrishnaDaddala/SuperGallery/issues/new?template=feature.yml">Request a feature</a> ·
@@ -39,6 +40,8 @@ SuperGallery is a self-hosted photo gallery and smart file manager for a home NA
 
 ### Gallery and search
 - **Photos timeline** grouped by month and day, photos at their own shape, a year/month scrubber, adjustable size and a full-screen viewer for photos, videos, audio and PDFs.
+- **Favourites, On this day and Places** — star photos, revisit today's date in earlier years, and browse where photos were taken (named on the NAS from their GPS tags; no map service).
+- **Share links** — a read-only page of chosen photos for 1 day, 1 week or 30 days, without an account; turn it off any time.
 - **Explore** — people, things recognised in your photos (dogs, food, temples, receipts, beaches and more than 120 others) and collections, all worked out on the NAS.
 - **Search by meaning** — type "sunset at the beach" or "people cycling" and get matching photos, using a local CLIP model (no cloud).
 - **Video scene search** — finds the moment inside a video and opens it at that timestamp.
@@ -49,7 +52,7 @@ SuperGallery is a self-hosted photo gallery and smart file manager for a home NA
 
 ### File manager
 - Keyboard-driven, dual-pane file manager with list and grid views that stay fast with 100,000+ entries: previews, multi-select, drag-and-drop moves, rename, bulk rename with preview and new folders.
-- **Resumable uploads** of very large files with checksums, plus ZIP download of folders.
+- **Resumable uploads** of very large files with checksums, plus ZIP download of folders. **Back up this phone** skips photos already on the NAS.
 - **Recycle bin** per user, with preview, restore and configurable retention — deletes are never immediate.
 - **File types** — space by extension; open any type on its own page as a list or thumbnails.
 - Per-user libraries: pick one person, several, or everyone; duplicates are judged within each person's own files.
@@ -74,7 +77,7 @@ SuperGallery is a self-hosted photo gallery and smart file manager for a home NA
 - Local-network only by default; remote access must be switched on deliberately and requires two-step verification.
 - Library mounted read-only on first run; the container drops all Linux capabilities.
 
-See [feature controls](docs/FEATURES.md), [privacy](docs/PRIVACY.md) and [remote access](docs/REMOTE_ACCESS.md) for details. Optional celebrity lookup uses Amazon Rekognition, is off by default and is not part of the standard image (build with `--build-arg WITH_AWS=1`); every other feature works fully offline.
+See the [user guide](docs/USER_GUIDE.md), [feature controls](docs/FEATURES.md), [privacy](docs/PRIVACY.md) and [remote access](docs/REMOTE_ACCESS.md) for details. Optional celebrity lookup uses Amazon Rekognition, is off by default and is not part of the standard image (build with `--build-arg WITH_AWS=1`); every other feature works fully offline.
 
 ## Screenshots
 

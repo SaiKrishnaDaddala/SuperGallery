@@ -65,6 +65,8 @@ from .updates import router as updates_router
 app.include_router(updates_router)
 from .network import router as network_router
 app.include_router(network_router)
+from .shares import router as shares_router
+app.include_router(shares_router)
 
 
 # ---------------------------------------------------------------- helpers
@@ -98,6 +100,8 @@ def full_index(task, rescan=True):
     log.info("duplicate hashing finished: %s", h)
     queries.invalidate()
     analyzer.analyze_images(task)
+    from . import places
+    places.update(task)
     video.analyze_videos(task)
     sim = {'skipped': True}
     if features.enabled('cleanup'):
@@ -171,6 +175,8 @@ def startup():
     search_index.init()
     from . import visual_search, albums, intelligence_tasks
     visual_search.init(); albums.init(); intelligence_tasks.init()
+    from . import shares
+    shares.init()
     analyzer.reclassify_all()
     jobs.start()
     from . import memory
@@ -196,6 +202,25 @@ def status():
             "ffmpeg": bool(thumbs.VIDEO), "auth": True, "env_password": bool(APP_PASSWORD),
             "scan_interval_hours": SCAN_INTERVAL_HOURS, "trash_days": TRASH_RETENTION_DAYS,
             "version": features.VERSION, "features": features.settings()}
+
+
+@app.get("/api/memories")
+def memories():
+    return queries.on_this_day()
+
+
+@app.post("/api/favorites")
+def favorites(body: dict = Body(...)):
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+        raise HTTPException(400, "Choose the photos to mark.")
+    return queries.set_favorites(ids, bool(body.get("on", True)))
+
+
+@app.get("/api/places")
+def places_list(limit: int = 60):
+    from . import places
+    return places.listing(max(1, min(int(limit), 300)))
 
 
 @app.post("/api/scan")

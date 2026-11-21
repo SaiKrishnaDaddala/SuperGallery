@@ -189,6 +189,9 @@ def text_condition(text):
         clauses.append("id IN (SELECT cf.file_id FROM current_faces cf JOIN people p ON p.id=cf.person_id WHERE cf.ignored=0 AND " +
             " AND ".join("lower(p.name) LIKE ? ESCAPE '\\'" for _ in words) + ")")
         params += [pattern(w) for w in words]
+    # Where a photo was taken: "hyderabad", "goa".
+    clauses.append("(" + " AND ".join("lower(place) LIKE ? ESCAPE '\\'" for _ in words) + ")")
+    params += [pattern(w) for w in words]
     if features.enabled('photo_search'):
         # Things recognised in photos: "dog", or a two-word thing like "ice cream".
         labels = sorted({w.lower() for w in words} | {" ".join(words).lower()})

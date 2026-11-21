@@ -54,6 +54,11 @@ def build_where(f: dict) -> tuple[str, list]:
     if f.get("owner"):
         w.append("owner=?")
         p.append(str(f["owner"]))
+    if f.get("fav"):
+        w.append("id IN (SELECT file_id FROM favorites)")
+    if f.get("place"):
+        w.append("place=?")
+        p.append(str(f["place"]))
     if f.get("tag"):
         features.require('photo_search')
         w.append("id IN (SELECT file_id FROM photo_tags WHERE label=?)")
@@ -131,7 +136,8 @@ def build_where(f: dict) -> tuple[str, list]:
     return (" WHERE " + " AND ".join(w)) if w else "", p
 
 
-ITEM_COLS = "id, path, dir, name, ext, cat, size, mtime, ts, width, height, hash, blur, owner, kind, duration"
+ITEM_COLS = ("id, path, dir, name, ext, cat, size, mtime, ts, width, height, hash, blur, owner, kind, duration, place, "
+             "id IN (SELECT file_id FROM favorites) AS fav")
 
 
 def item(r) -> dict:
@@ -150,6 +156,40 @@ def query(f: dict, sort="size", order="desc", limit=200, offset=0) -> dict:
     rows = c.execute(f"SELECT {ITEM_COLS} FROM files{where} ORDER BY {ob}, id LIMIT ? OFFSET ?",
                      p + op + [int(limit), int(offset)]).fetchall()
     return {"total": agg[0], "total_size": agg[1], "items": [item(r) for r in rows]}
+
+
+# Kinds that make poor memories: screenshots, forwards, documents and leftovers.
+NOT_MEMORIES = ("screenshot", "chat", "web", "cache", "document", "phonetrash", "screenrec", "msgvideo", "tiny")
+
+
+def on_this_day(per_year: int = 18) -> dict:
+    """Photos and videos taken on today's date in earlier years, newest year first."""
+    import datetime as dt
+    today = dt.date.today()
+    start_of_year = dt.datetime(today.year, 1, 1).timestamp()
+
+    def build():
+        W, P = scope.where(extra=f"cat IN ('image','video') AND ts<? AND strftime('%m-%d', ts, 'unixepoch', 'localtime')=? "
+                                 f"AND COALESCE(kind,'') NOT IN ({','.join('?' * len(NOT_MEMORIES))})",
+                           params=[start_of_year, today.strftime('%m-%d'), *NOT_MEMORIES])
+        years: dict = {}
+        for r in db.conn().execute(f"SELECT {ITEM_COLS} FROM files{W} ORDER BY ts DESC LIMIT 2000", P):
+            year = time.localtime(r["ts"]).tm_year
+            if len(years.setdefault(year, [])) < per_year:
+                years[year].append(item(r))
+        return {"date": today.isoformat(), "years": [{"year": y, "years_ago": today.year - y, "items": items} for y, items in years.items()]}
+    return _cached(f"on-this-day:{today.isoformat()}", build, ttl=3600)
+
+
+def set_favorites(ids: list[int], on: bool) -> dict:
+    ids = [int(i) for i in ids][:20000]
+    with db.tx() as t:
+        if on:
+            t.executemany("INSERT OR IGNORE INTO favorites VALUES(?, ?)", [(i, time.time()) for i in ids])
+        else:
+            t.executemany("DELETE FROM favorites WHERE file_id=?", [(i,) for i in ids])
+    invalidate()
+    return {"ok": True, "count": len(ids), "on": on}
 
 
 def ids_for(f: dict, cap=2_000_000) -> list[int]:

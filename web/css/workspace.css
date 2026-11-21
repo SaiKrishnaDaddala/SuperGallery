@@ -308,3 +308,47 @@ body { letter-spacing: .01em; }
 .card h2 .right { margin-left: auto; font: 400 13px var(--font); letter-spacing: 0; }
 .view > h2 { font: 400 1.25rem/1.3 var(--font-display); }
 .gal-month h2 { margin: 0; display: flex; align-items: center; gap: 10px; }
+
+/* ---------------------------------------------------------------- favourites, memories, free up space */
+.lb-top .fav.on svg { fill: #fdd663; stroke: #fdd663; }
+.gtile .fav-mark { position: absolute; left: 8px; bottom: 6px; z-index: 1; color: #fff; filter: drop-shadow(0 0 2px rgba(0, 0, 0, .6)); }
+.gtile .fav-mark svg { width: 16px; height: 16px; fill: #fff; }
+.memories { margin-bottom: 24px; }
+.memories .section-title h2 { margin: 0 0 12px; font: 400 1.25rem/1.3 var(--font-display); }
+.memory-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.memory { position: relative; flex: none; width: 168px; aspect-ratio: 3 / 4; padding: 0; border: 0; border-radius: 16px; overflow: hidden; cursor: pointer; background: var(--fill); }
+.memory img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
+.memory:hover img { transform: scale(1.04); }
+.memory::after { content: ''; position: absolute; inset: 45% 0 0; background: linear-gradient(transparent, rgba(0, 0, 0, .65)); }
+.memory-label { position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 1; display: flex; flex-direction: column; gap: 2px; color: #fff; text-align: left; }
+.memory-label b { font: 500 15px/1.2 var(--font-display); }
+.memory-label small { font-size: 12px; opacity: .9; }
+.freeup { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; background: var(--panel2); border: 0; }
+.freeup h2 { margin: 0; font: 400 1.25rem/1.3 var(--font-display); }
+.freeup p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.freeup-icon { display: grid; place-items: center; width: 48px; height: 48px; flex: none; border-radius: 50%; background: var(--accent-soft); color: var(--on-accent-soft); }
+.freeup-icon svg { width: 24px; height: 24px; }
+@media (max-width: 640px) { .freeup { flex-wrap: wrap; } .freeup .grow { flex-basis: calc(100% - 64px); } .memory { width: 132px; } }
+
+/* ---------------------------------------------------------------- share links, phone backup */
+.share-form .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.share-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.share-row:first-child { border-top: 0; }
+.share-row.off { opacity: .6; }
+.backup-card { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+.backup-card .grow { min-width: 220px; }
+.backup-card h2 { margin: 0; }
+.backup-card p { margin: 4px 0 0; }
+.upload-drop > h2 { justify-content: center; }
+.memories .section-title { margin-bottom: 0; }
+/* File types table on smaller screens: keep type, files, size and Open; drop the detail columns. */
+@media (max-width: 900px) {
+  .table-card .tbl th:nth-child(n+6):nth-child(-n+9), .table-card .tbl td:nth-child(n+6):nth-child(-n+9) { display: none; }
+}
+@media (max-width: 480px) {
+  .table-card .tbl th:nth-child(3), .table-card .tbl td:nth-child(3) { display: none; }
+  .table-card .view-type { padding: 0 10px; }
+}
+.lb-top .pos { white-space: nowrap; }
+.lb-top .fav.on { background: transparent; }
+@media (max-width: 480px) { .lb-top .pos { display: none; } .lb-top .btn, .lb-top .btn:not(.primary, .danger, .ghost, .on) { width: 40px; height: 40px; } }
