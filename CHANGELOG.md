@@ -13,6 +13,7 @@
 - File lists: one toolbar above the files with the count, Select all, sort and list/grid (remembered per page), loading placeholders instead of a spinner, and a Try again button when loading fails.
 - Viewer: icon buttons like Google Photos; the Info panel lists the things in the photo.
 - Lighter on the NAS: sign-in checks no longer take a database write lock on every request; the sidebar counts are cached between changes; regrouping similar photos is skipped when no photo changed; photo search decodes photos at the small size its model needs (about 3× less work per photo); thumbnails use at most half the cores.
+- Security: pypdf 6.21.4 (fixes seven published vulnerabilities in PDF text extraction).
 - Page titles match the menu (Home, Clean up, Collections, Storage, Recycle bin, Automation, Organize files, Library users) and technical wording was replaced.
 - Recycle bin: shows only the selected user's deleted files. Restore all, Empty recycle bin and the sidebar count now stay inside that user too; before this, Empty recycle bin erased every user's deleted files whichever user was selected.
 - Recycle bin: preview deleted photos and videos by clicking the thumbnail, double-clicking the row, or Preview in the selection bar. Previews are view-only.
