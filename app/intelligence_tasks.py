@@ -41,7 +41,7 @@ def _execute(task, request_id, kind, owners, retry):
                 from . import tags
                 result.update(tags.update(task))
             if kind == 'faces':
-                result.update(people.regroup(task, owners))
+                result.update(people.regroup(task, owners, repair=db.kv_get('people_regroup') != people.REGROUP))
                 if not owners:
                     db.kv_set('people_regroup', people.REGROUP)
             task.progress(stage='Ready',message=f'{task.total:,} files checked; indexed results are ready')

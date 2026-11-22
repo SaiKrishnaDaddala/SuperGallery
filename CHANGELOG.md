@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.8.1 — 2026-11-22
+
+- People: 2.8.0 joined groups by comparing their average faces. In big groups the average drifts toward a generic face that small, blurry crowd faces resemble, so some groups from event photos took in faces of other people. Groups are now compared face to face (the average similarity of their most confident faces), which on real photos still joins every split person tested and joins no one else; the average face only picks the candidates.
+- People: once after updating, faces are moved out of unnamed groups they clearly don't belong to (they don't resemble the group's core faces), then regrouped. Named groups are left as they are. On real samples this removed 12 of 120 faces from over-joined groups and 0 of 160 faces from correct ones.
+- People: new faces must also resemble the person's actual faces, not just their average face, before they join.
+- "Same person?" suggestions compare faces with faces too.
+
 ## 2.8.0 — 2026-11-22
 
 - People: one person split into several groups (for example early photos with and without glasses) is now brought back together. After every face pass, each library's groups are compared by their average face and joined when they clearly match (thresholds measured on a real 84,000-photo library). Two faces in the same photo are never joined, two different names are never joined, and libraries stay separate. Runs once by itself after updating.

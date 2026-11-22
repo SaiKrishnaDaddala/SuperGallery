@@ -76,12 +76,18 @@ def init():
 
 PROTOTYPES = "mean-v1"
 MEAN_CAP = 200  # a person's average follows new faces; after this many it moves slowly but never freezes
-REGROUP = "regroup-v1"  # bump to regroup every library once after an update
-# Measured on a real 84k-photo library (SFace): a face scores 0.68+ (5th percentile) against its own person's average
-# and at most 0.54 against anyone else's; averages of two groups of one person score 0.72+, of different people <= 0.52.
-JOIN = .62   # a group joins a person when their average faces are at least this alike
-ASK = .50    # from here up to JOIN, ask the user "Same person?" instead of deciding
-MARGIN = .04  # ...and the best person must beat the next one by this much
+REGROUP = "regroup-v2"  # bump to repair and regroup every library once after an update
+# Measured on a real 84k-photo library (SFace), comparing faces with faces: a face scores 0.61+ (5th percentile) on
+# average against the other faces of its own person and at most 0.49 against anyone else's; two groups of one person
+# score 0.57+ face to face, different people at most 0.41. Averages of big groups drift toward a generic face that
+# noisy crowd faces resemble, so they only pre-select candidates; decisions compare faces with faces.
+JOIN = .62       # two halves of one person: their average faces are at least this alike
+PRE = .40        # average faces this alike are worth comparing face to face
+LINK_JOIN = .55  # groups whose faces are this alike on average are one person
+LINK_ASK = .45   # from here up to LINK_JOIN, ask the user "Same person?" instead of deciding
+KEEP = .50       # a face stays with a person only if it is at least this like their faces (0 of 160 real faces fail)
+MARGIN = .04     # the best person must beat the next one by this much
+SAMPLE = 24      # most confident faces per person used for face-to-face comparisons
 
 
 def _mean(vectors: np.ndarray) -> np.ndarray:
@@ -229,6 +235,7 @@ def index(task, owners=None, retry=False):
             (" OR i.state='error'" if retry else "") + ") ORDER BY f.ts DESC, f.id", params)
         count, errors = 0, 0
         banks = {}  # owner -> [ids, vectors]; loaded once per run, kept current as faces are added
+        samples = {}  # person -> their most confident faces, to confirm a match face to face
         task.progress(total=len(rows), done=0, stage="Finding people", message="Processing on this NAS")
         for n, (row, pending) in enumerate(_detect_ahead(rows)):
             task.progress(done=n, message=f"{n:,} of {len(rows):,} photos checked · {count:,} faces found")
@@ -254,6 +261,13 @@ def index(task, owners=None, retry=False):
                 used = set()
                 for feature, crop, confidence in found:
                     person = choose_person(feature, vectors, ids, used)
+                    if person is not None:
+                        if person not in samples:
+                            samples[person] = [np.frombuffer(e, dtype="float32") for (e,) in c.execute(
+                                "SELECT embedding FROM faces WHERE person_id=? AND ignored=0 ORDER BY score DESC LIMIT ?", (person, SAMPLE))
+                                if len(e) == 512]
+                        if samples[person] and float(np.mean(np.stack(samples[person]) @ feature)) < KEEP:
+                            person = None  # like the average face, not like the actual faces: a different person
                     if person is None:
                         person = c.execute("INSERT INTO people(owner,prototype,created) VALUES(?,?,?)",
                             (row["owner"], feature.tobytes(), time.time())).lastrowid
@@ -266,6 +280,8 @@ def index(task, owners=None, retry=False):
                         vectors[k] = _mean(np.stack([vectors[k] * max(n, 1), feature]))
                         c.execute("UPDATE people SET prototype=? WHERE id=?", (vectors[k].tobytes(), person))
                     used.add(person)
+                    if len(samples.setdefault(person, [])) < SAMPLE:
+                        samples[person].append(feature)
                     c.execute("INSERT INTO faces(file_id,person_id,embedding,crop,score) VALUES(?,?,?,?,?)",
                         (row["id"], person, feature.tobytes(), crop, confidence))
                 c.execute("INSERT OR REPLACE INTO face_index VALUES(?,?,?,?,?,?)",
@@ -289,88 +305,146 @@ def _not_same(c):
     return pairs
 
 
-def regroup(task=None, owners=None) -> dict:
-    """Join groups that are one person split in two (for example early photos with and without glasses).
+def _groups(c, owner):
+    """Every group in a library with its faces' vectors (most confident first), photo ids and face ids."""
+    groups = {}
+    for pid, name, fid, file_id, emb in c.execute(
+            "SELECT p.id,p.name,f.id,f.file_id,f.embedding FROM faces f JOIN people p ON p.id=f.person_id "
+            "WHERE p.owner=? AND f.ignored=0 ORDER BY p.id, f.score DESC, f.id", (owner,)):
+        if len(emb) != 512:
+            continue
+        g = groups.setdefault(pid, {"name": name.strip().casefold(), "faces": [], "vectors": [], "files": set()})
+        g["faces"].append(fid)
+        g["vectors"].append(np.frombuffer(emb, dtype="float32"))
+        g["files"].add(file_id)
+    for g in groups.values():
+        g["vectors"] = np.stack(g["vectors"])
+    return groups
 
-    Works on each library separately, biggest and named groups first. A group joins a person only when their average
-    faces are clearly alike (JOIN, with a margin over the next candidate), never when both appear in the same photo,
-    never across two different names, and never for a pair the user said are different people.
+
+def _link(a, b):
+    """Average face-to-face similarity of two sets of faces (the robust way to compare people)."""
+    return float((a @ b.T).mean())
+
+
+def regroup(task=None, owners=None, repair=False) -> dict:
+    """Bring together groups that are one person split in two (for example with and without glasses).
+
+    Each library separately, named and bigger groups first. Groups are compared face to face (average similarity of
+    their most confident faces), not by their average face, which in big groups drifts toward a generic face that
+    noisy crowd faces resemble. Never joins faces from one photo, two different names, or pairs the user marked as
+    different. With repair, first moves faces out of unnamed groups they clearly don't belong to.
     """
     c = db.conn()
     where = " WHERE owner IN (%s)" % ",".join("?" * len(owners)) if owners else ""
     libraries = [r[0] for r in c.execute("SELECT DISTINCT owner FROM people" + where, list(owners or []))]
-    joined = 0
+    joined = moved = 0
     for owner in libraries:
         if task:
             task.progress(stage="Bringing matching faces together", message=f"Library {owner}")
-        joined += _regroup_library(owner)
-    return {"people_joined": joined}
+        with _lock:
+            if repair:
+                moved += _repair_library(owner)
+            joined += _join_library(owner)
+    return {"people_joined": joined, "faces_moved_out": moved}
 
 
-def _regroup_library(owner) -> int:
-    with _lock:
-        c = db.conn()
-        people_rows = c.execute("SELECT id,name,prototype FROM people WHERE owner=?", (owner,)).fetchall()
-        files = {}
-        for pid, fid in c.execute("SELECT f.person_id,f.file_id FROM faces f JOIN people p ON p.id=f.person_id "
-                                  "WHERE p.owner=? AND f.ignored=0", (owner,)):
-            files.setdefault(pid, set()).add(fid)
-        rows = [r for r in people_rows if r["id"] in files and len(r["prototype"]) == 512]
-        if len(rows) < 2:
-            return 0
-        rows.sort(key=lambda r: (r["name"] == "", -len(files[r["id"]]), r["id"]))
-        means = _unit(np.stack([np.frombuffer(r["prototype"], dtype="float32") for r in rows]))
-        not_same = _not_same(c)
-        anchors = np.zeros_like(means)
-        info = []  # per anchor: [id, name, faces weight, photo ids, member ids]
-        moves = []
-        for start in range(0, len(rows), 1024):
-            n0 = len(info)
-            ahead = means[start:start + 1024] @ anchors[:n0].T if n0 else None
-            for k, r in enumerate(rows[start:start + 1024]):
-                pid, name, mine = r["id"], r["name"].strip().casefold(), files[r["id"]]
-                n = len(info)
+def _repair_library(owner) -> int:
+    """Move faces out of unnamed groups whose core (the faces most like each other) they don't resemble."""
+    c = db.conn()
+    out, changed = [], set()
+    for pid, g in _groups(c, owner).items():
+        e = g["vectors"]
+        if g["name"] or len(e) < 3:
+            continue
+        s = e[:400]
+        sims = s @ s.T
+        medoid = int(sims.mean(axis=1).argmax())
+        order = np.argsort(-sims[medoid])
+        core = s[order[:max(3, min(40, int((sims[medoid] >= LINK_JOIN).sum())))]]
+        link = (e @ core.T).mean(axis=1)
+        strays = [g["faces"][i] for i in np.flatnonzero(link < KEEP)]
+        if strays:
+            out += [(fid, e[i]) for fid, i in zip(strays, np.flatnonzero(link < KEEP))]
+            changed.add(pid)
+    if not out:
+        return 0
+    with db.tx() as t:
+        for fid, vec in out:
+            new = t.execute("INSERT INTO people(owner,prototype,created) VALUES(?,?,?)", (owner, vec.tobytes(), time.time())).lastrowid
+            t.execute("UPDATE faces SET person_id=? WHERE id=?", (new, fid))
+        _refresh(t, changed)
+    return len(out)
+
+
+def _refresh(t, pids):
+    for pid in pids:
+        emb = [np.frombuffer(e, dtype="float32") for (e,) in t.execute(
+            "SELECT embedding FROM faces WHERE person_id=? AND ignored=0 ORDER BY id DESC LIMIT ?", (pid, MEAN_CAP * 5))]
+        emb = [e for e in emb if e.size == 128]
+        if emb:
+            t.execute("UPDATE people SET prototype=? WHERE id=?", (_mean(np.stack(emb)).tobytes(), pid))
+
+
+def _join_library(owner) -> int:
+    c = db.conn()
+    groups = _groups(c, owner)
+    rows = sorted(groups, key=lambda p: (groups[p]["name"] == "", -len(groups[p]["files"]), p))
+    if len(rows) < 2:
+        return 0
+    not_same = _not_same(c)
+    means = _unit(np.stack([groups[p]["vectors"].mean(axis=0) for p in rows])).astype("float32")
+    anchors = np.zeros_like(means)
+    info = []  # per anchor: [id, name, sample vectors, photo ids, member ids, weight]
+    moves = []
+    for start in range(0, len(rows), 1024):
+        n0 = len(info)
+        ahead = means[start:start + 1024] @ anchors[:n0].T if n0 else None
+        for k, pid in enumerate(rows[start:start + 1024]):
+            g = groups[pid]
+            mine, sample = g["files"], g["vectors"][:SAMPLE]
+            n = len(info)
+            choice = None
+            if n:
                 scores = np.empty(n, dtype="float32")
                 if n0:
                     scores[:n0] = ahead[k]
                 if n > n0:
                     scores[n0:] = anchors[n0:n] @ means[start + k]
-                choice = None
-                if n:
-                    near = np.flatnonzero(scores >= ASK)  # usually a handful out of many thousands
-                    order = near[np.argsort(-scores[near])][:8]
-                    eligible = [int(i) for i in order if scores[i] >= ASK and not (mine & info[i][3]) and
-                                not (name and info[i][1] and name != info[i][1]) and not (not_same.get(pid, set()) & info[i][4])]
-                    if eligible and scores[eligible[0]] >= JOIN:
-                        nxt = float(scores[eligible[1]]) if len(eligible) > 1 else -1
-                        if scores[eligible[0]] - nxt >= MARGIN:
-                            choice = eligible[0]
-                if choice is None:
-                    anchors[n] = means[start + k]
-                    info.append([pid, name, len(mine), set(mine), {pid}])
-                    continue
-                a = info[choice]
-                anchors[choice] = _unit(anchors[choice] * a[2] + means[start + k] * len(mine))
-                a[2] += len(mine)
-                a[3] |= mine
-                a[4].add(pid)
-                moves.append((pid, a[0]))
-        if not moves:
-            return 0
-        with db.tx() as t:
-            for source, target in moves:
-                t.execute("UPDATE faces SET person_id=? WHERE person_id=?", (target, source))
-                t.execute("UPDATE OR IGNORE people_not_same SET a=? WHERE a=?", (target, source))
-                t.execute("UPDATE OR IGNORE people_not_same SET b=? WHERE b=?", (target, source))
-                t.execute("DELETE FROM people_not_same WHERE a=? OR b=?", (source, source))
-                t.execute("DELETE FROM people WHERE id=?", (source,))
-            for target in {t_ for _, t_ in moves}:
-                emb = [np.frombuffer(e, dtype="float32") for (e,) in t.execute(
-                    "SELECT embedding FROM faces WHERE person_id=? AND ignored=0 ORDER BY id DESC LIMIT ?", (target, MEAN_CAP * 5))]
-                emb = [e for e in emb if e.size == 128]
-                if emb:
-                    t.execute("UPDATE people SET prototype=? WHERE id=?", (_mean(np.stack(emb)).tobytes(), target))
-        return len(moves)
+                near = np.flatnonzero(scores >= PRE)
+                near = near[np.argsort(-scores[near])][:16]
+                links = []
+                for i in near:
+                    a = info[int(i)]
+                    if mine & a[3] or (g["name"] and a[1] and g["name"] != a[1]) or not_same.get(pid, set()) & a[4]:
+                        continue
+                    links.append((_link(sample, a[2]), int(i)))
+                links.sort(reverse=True)
+                if links and links[0][0] >= LINK_JOIN and (len(links) < 2 or links[0][0] - links[1][0] >= MARGIN):
+                    choice = links[0][1]
+            if choice is None:
+                anchors[n] = means[start + k]
+                info.append([pid, g["name"], sample, set(mine), {pid}, len(mine)])
+                continue
+            a = info[choice]
+            anchors[choice] = _unit(anchors[choice] * a[5] + means[start + k] * len(mine))
+            if len(a[2]) < SAMPLE:
+                a[2] = np.vstack([a[2], sample[:SAMPLE - len(a[2])]])
+            a[3] |= mine
+            a[4].add(pid)
+            a[5] += len(mine)
+            moves.append((pid, a[0]))
+    if not moves:
+        return 0
+    with db.tx() as t:
+        for source, target in moves:
+            t.execute("UPDATE faces SET person_id=? WHERE person_id=?", (target, source))
+            t.execute("UPDATE OR IGNORE people_not_same SET a=? WHERE a=?", (target, source))
+            t.execute("UPDATE OR IGNORE people_not_same SET b=? WHERE b=?", (target, source))
+            t.execute("DELETE FROM people_not_same WHERE a=? OR b=? OR a=b", (source, source))
+            t.execute("DELETE FROM people WHERE id=?", (source,))
+        _refresh(t, {target for _, target in moves})
+    return len(moves)
 
 
 SUGGEST_MIN_PHOTOS = 3
@@ -382,33 +456,40 @@ def suggestions(limit=12):
     c = db.conn()
     not_same = _not_same(c)
     for owner in scope.owners() or [r[0] for r in c.execute("SELECT DISTINCT owner FROM people")]:
-        rows = c.execute("SELECT p.id,p.name,p.prototype,COUNT(DISTINCT f.file_id) photos,MIN(f.id) cover FROM people p "
+        rows = c.execute("SELECT p.id,p.name,COUNT(DISTINCT f.file_id) photos,MIN(f.id) cover FROM people p "
                          "JOIN current_faces f ON f.person_id=p.id AND f.ignored=0 WHERE p.owner=? GROUP BY p.id "
                          "HAVING photos>=? ORDER BY photos DESC LIMIT 600", (owner, SUGGEST_MIN_PHOTOS)).fetchall()
-        rows = [r for r in rows if len(r["prototype"]) == 512]
         if len(rows) < 2:
             continue
-        m = _unit(np.stack([np.frombuffer(r["prototype"], dtype="float32") for r in rows]))
+        ids = [r["id"] for r in rows]
+        vectors, files = {}, {}
+        for pid, file_id, emb in c.execute("SELECT person_id,file_id,embedding FROM faces WHERE ignored=0 AND person_id IN (%s) "
+                                           "ORDER BY person_id, score DESC" % ",".join("?" * len(ids)), ids):
+            files.setdefault(pid, set()).add(file_id)
+            if len(emb) == 512 and len(vectors.setdefault(pid, [])) < SAMPLE:
+                vectors[pid].append(np.frombuffer(emb, dtype="float32"))
+        rows = [r for r in rows if vectors.get(r["id"])]
+        samples = [np.stack(vectors[r["id"]]) for r in rows]
+        m = _unit(np.stack([s.mean(axis=0) for s in samples]))
         sims = np.triu(m @ m.T, 1)
-        for i, j in zip(*np.nonzero((sims >= ASK) & (sims < JOIN + .2))):
+        for i, j in zip(*np.nonzero(sims >= PRE)):
             a, b = rows[int(i)], rows[int(j)]
-            if b["id"] in not_same.get(a["id"], ()) or (a["name"] and b["name"]):
+            if b["id"] in not_same.get(a["id"], ()) or (a["name"] and b["name"]) or files[a["id"]] & files[b["id"]]:
                 continue
-            out.append((float(sims[i, j]), owner, a, b))
+            link = _link(samples[int(i)], samples[int(j)])
+            if LINK_ASK <= link:
+                out.append((link, owner, a, b))
     out.sort(key=lambda x: -x[0])
     keep, seen = [], set()
     for score, owner, a, b in out:
         if a["id"] in seen or b["id"] in seen:
             continue  # one question per group at a time
         seen |= {a["id"], b["id"]}
-        if len(keep) < limit:
-            shared = c.execute("SELECT COUNT(*) FROM (SELECT file_id FROM faces WHERE person_id=? INTERSECT SELECT file_id FROM faces WHERE person_id=?)",
-                               (a["id"], b["id"])).fetchone()[0]
-            if shared:
-                continue  # both in one photo: two different people
-            keep.append({"score": round(score, 3), "owner": owner,
-                         "a": {"id": a["id"], "name": a["name"], "photos": a["photos"], "cover": a["cover"]},
-                         "b": {"id": b["id"], "name": b["name"], "photos": b["photos"], "cover": b["cover"]}})
+        keep.append({"score": round(score, 3), "owner": owner,
+                     "a": {"id": a["id"], "name": a["name"], "photos": a["photos"], "cover": a["cover"]},
+                     "b": {"id": b["id"], "name": b["name"], "photos": b["photos"], "cover": b["cover"]}})
+        if len(keep) >= limit:
+            break
     return {"items": keep}
 
 

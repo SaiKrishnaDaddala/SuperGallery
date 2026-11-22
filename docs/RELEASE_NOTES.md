@@ -1,3 +1,13 @@
+SuperGallery 2.8.1 fixes People groups that 2.8.0 joined too eagerly.
+
+## Fixed
+- **Crowd faces in the wrong person:** 2.8.0 brought split groups together by comparing average faces, and some groups from event photos took in faces of other people. 2.8.1 compares faces with faces, moves wrongly joined faces out of unnamed groups once after updating, and checks new faces the same way. Groups you named are not changed.
+
+## Install or update
+Use `ghcr.io/saikrishnadaddala/supergallery:2.8.1` (or `:latest`). On a UGREEN NAS: Docker → Project → supergallery → Redeploy, tick "Pull the latest image". The repair runs by itself in the background after the update (a few minutes on a large library).
+
+---
+
 SuperGallery 2.8.0 makes People and Things much more accurate on real family libraries.
 
 ## Better
@@ -11,7 +21,7 @@ SuperGallery 2.8.0 makes People and Things much more accurate on real family lib
 New to SuperGallery? The [user guide](https://github.com/SaiKrishnaDaddala/SuperGallery/blob/main/docs/USER_GUIDE.md) walks through every page.
 
 ## Install or update
-Use `ghcr.io/saikrishnadaddala/supergallery:2.8.0` (or `:latest`). On a UGREEN NAS: Docker → Project → supergallery → Redeploy, tick "Pull the latest image". With Docker Compose: `docker compose pull && docker compose up -d`. Your library, people, names, albums and settings are kept. After the update, SuperGallery re-tags Things and brings split People groups together by itself in the background (a few minutes on a large library).
+Use `ghcr.io/saikrishnadaddala/supergallery:2.8.0`. On a UGREEN NAS: Docker → Project → supergallery → Redeploy, tick "Pull the latest image". With Docker Compose: `docker compose pull && docker compose up -d`. Your library, people, names, albums and settings are kept. After the update, SuperGallery re-tags Things and brings split People groups together by itself in the background (a few minutes on a large library).
 
 ---
 
