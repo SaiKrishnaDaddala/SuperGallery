@@ -17,7 +17,8 @@ from . import db, features, jobs, scope
 LABELS = [
     ("people", "a group of people"), ("selfie", "a selfie"), ("baby", "a baby"), ("child", "a child"),
     ("wedding", "a wedding"), ("party", "a party"), ("birthday", "a birthday cake with candles"), ("festival", "a festival celebration"),
-    ("fireworks", "fireworks"), ("concert", "a concert on stage"), ("dance", "people dancing"), ("prayer", "people praying"),
+    ("fireworks", "fireworks"), ("concert", "a concert on stage"), ("dance", "people dancing"), ("prayer", "people praying"), ("event", "indian politicians at a public event"),
+    ("portrait", "a portrait of a person"), ("_namaste", "a person greeting with folded hands"), ("_men", "men in white shirts standing together"),
     ("dog", "a dog"), ("cat", "a cat"), ("bird", "a bird"), ("cow", "a cow"), ("horse", "a horse"), ("elephant", "an elephant"),
     ("monkey", "a monkey"), ("fish", "fish"), ("butterfly", "a butterfly"), ("insect", "an insect"),
     ("flower", "flowers"), ("tree", "trees"), ("plant", "a potted plant"), ("garden", "a garden"),
@@ -26,7 +27,7 @@ LABELS = [
     ("snow", "snow"), ("rain", "rain"), ("desert", "a desert"), ("forest", "a forest"), ("field", "a green field"),
     ("moon", "the moon"), ("stars", "stars in the night sky"),
     ("city", "a city skyline"), ("street", "a street"), ("building", "a building"), ("house", "a house"),
-    ("temple", "a hindu temple"), ("church", "a church"), ("mosque", "a mosque"), ("monument", "a historic monument"),
+    ("temple", "a hindu temple building"), ("church", "a church"), ("mosque", "a mosque"), ("monument", "a historic monument"),
     ("bridge", "a bridge"), ("road", "a road"), ("park", "a park"), ("market", "a market"), ("shop", "a shop"),
     ("restaurant", "a restaurant"), ("hotel room", "a hotel room"), ("bedroom", "a bedroom"), ("living room", "a living room"),
     ("kitchen", "a kitchen"), ("office", "an office"), ("classroom", "a classroom"), ("hospital", "a hospital"),
@@ -37,14 +38,15 @@ LABELS = [
     ("food", "a plate of food"), ("dosa", "a dosa"), ("rice", "a rice dish"), ("curry", "curry"), ("bread", "bread"),
     ("cake", "a cake"), ("sweets", "indian sweets"), ("fruit", "fruit"), ("vegetables", "vegetables"), ("pizza", "pizza"),
     ("ice cream", "ice cream"), ("coffee", "a cup of coffee"), ("tea", "a cup of tea"), ("drink", "a drink in a glass"),
-    ("document", "a printed document"), ("receipt", "a shopping receipt"), ("invoice", "an invoice"), ("id card", "an identity card"),
-    ("certificate", "a certificate"), ("handwriting", "handwritten notes"), ("book", "a book"), ("newspaper", "a newspaper"),
+    ("document", "a printed document"), ("receipt", "a shopping receipt"), ("invoice", "an invoice"), ("id card", "an id card or membership card"),
+    ("certificate", "a certificate with a seal and signature"), ("handwriting", "handwritten notes"), ("book", "a book"), ("newspaper", "a newspaper"),
     ("whiteboard", "a whiteboard"), ("screenshot", "a screenshot of a phone screen"), ("chart", "a chart"), ("map", "a map"),
-    ("poster", "a poster"), ("menu", "a restaurant menu"), ("ticket", "a ticket"), ("qr code", "a qr code"),
+    ("poster", "a poster"), ("greeting", "a greeting card"), ("advertisement", "an advertisement"),
+    ("email", "an email"), ("spreadsheet", "a spreadsheet"), ("menu", "a restaurant menu"), ("ticket", "a ticket"), ("qr code", "a qr code"),
     ("computer", "a computer"), ("laptop", "a laptop"), ("phone", "a mobile phone"), ("television", "a television"),
     ("camera", "a camera"), ("toy", "toys"), ("clothes", "clothes"), ("shoes", "shoes"), ("jewellery", "jewellery"),
     ("watch", "a wrist watch"), ("glasses", "eyeglasses"), ("painting", "a painting"), ("drawing", "a drawing"),
-    ("statue", "a statue"), ("coins", "coins"), ("money", "money notes"), ("medicine", "medicine"),
+    ("statue", "a statue"), ("god", "a statue of a hindu deity decorated with flowers"), ("pooja", "a home pooja shelf with idols and lamps"), ("_lights", "candles and fairy lights at night"), ("coins", "coins"), ("money", "money notes"), ("medicine", "medicine"),
     ("cricket", "people playing cricket"), ("football", "people playing football"), ("gym", "a gym"), ("yoga", "yoga"),
     ("space", "outer space"), ("astronaut", "an astronaut"), ("text", "text"), ("logo", "a logo"),
     # Catch-alls that are never shown: they take the probability of photos with no clear subject.
@@ -109,6 +111,7 @@ def update(task=None) -> dict:
         "WHERE f.cat='image' AND i.model=? AND i.state='done' AND (s.file_id IS NULL OR s.version!=? OR s.vector_id!=v.id)",
         (MODEL, VERSION)).fetchall()
     if not todo:
+        db.kv_set('tags_version', VERSION)
         return {'tagged': 0}
     labels = label_matrix()
     names = [label for label, _ in LABELS]
@@ -127,6 +130,7 @@ def update(task=None) -> dict:
                 t.executemany('INSERT INTO photo_tags VALUES(?,?,?)', [(row[1], names[i], round(prob, 4)) for i, prob in chosen])
                 t.execute('INSERT OR REPLACE INTO tag_state VALUES(?,?,?)', (row[1], VERSION, row[0]))
                 tagged += bool(chosen)
+    db.kv_set('tags_version', VERSION)
     return {'tagged': tagged, 'checked': len(todo)}
 
 

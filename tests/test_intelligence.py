@@ -76,7 +76,7 @@ def test_merge_does_not_cross_libraries(library):
     c, add=library
     a,_=add_face(c,add("a.jpg"));b,_=add_face(c,add("b.jpg","bob"),owner="bob")
     with pytest.raises(HTTPException):people.merge(a,b)
-    assert people.listing()["total"]==2
+    assert people.listing(small=True)["total"]==2
 
 
 def test_clear_biometrics_keeps_original_index(library):

@@ -352,3 +352,38 @@ body { letter-spacing: .01em; }
 .lb-top .pos { white-space: nowrap; }
 .lb-top .fav.on { background: transparent; }
 @media (max-width: 480px) { .lb-top .pos { display: none; } .lb-top .btn, .lb-top .btn:not(.primary, .danger, .ghost, .on) { width: 40px; height: 40px; } }
+
+/* Empty states inside grids span the whole row and sit in the middle, not in the first column. */
+:is(.album-grid, .people-grid, .ex-grid, .ex-chips, .meaning-grid) > :is(.empty, .meaning-empty, .people-empty) { grid-column: 1 / -1; justify-self: center; width: 100%; }
+.album-grid > .meaning-empty { max-width: 520px; margin: 48px auto; }
+.album-empty-icon { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: color-mix(in srgb, var(--accent), transparent 88%); color: var(--accent); margin-bottom: 12px; }
+.album-empty-icon .i { width: 30px; height: 30px; }
+.album-grid > .meaning-empty .btn { margin-top: 8px; }
+
+@media (max-width: 760px) {
+  .people-toolbar { flex-wrap: wrap; }
+  .people-toolbar .search-box { flex: 1 1 100%; max-width: none; }
+}
+
+/* People: "Same person?" review card and the one-photo note. */
+.people-suggest:not([hidden]) { display: flex; align-items: center; gap: 20px 28px; flex-wrap: wrap; margin: 0 0 18px; padding: 18px 22px; border-radius: 20px; background: color-mix(in srgb, var(--accent), transparent 91%); }
+.people-suggest h2 { font: 400 1.25rem/1.3 var(--font-display); margin: 0 0 4px; }
+.people-suggest p { margin: 0; color: var(--muted); max-width: 420px; line-height: 1.5; }
+.suggest-pair { display: flex; align-items: center; gap: 18px; }
+.suggest-face { display: grid; justify-items: center; gap: 2px; color: var(--text); text-decoration: none; min-width: 104px; }
+.suggest-face img { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; background: var(--panel); box-shadow: 0 0 0 3px var(--panel); }
+.suggest-face b { font-weight: 500; margin-top: 6px; }
+.suggest-face span { font-size: .8125rem; color: var(--muted); }
+.suggest-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.people-hidden { text-align: center; margin: 18px auto 8px; }
+.people-hidden button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+@media (max-width: 760px) {
+  .people-suggest:not([hidden]) { flex-direction: column; align-items: stretch; text-align: center; padding: 16px; }
+  .people-suggest p { max-width: none; }
+  .suggest-pair { justify-content: center; }
+  .suggest-face img { width: 84px; height: 84px; }
+  .suggest-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .suggest-actions .yes { grid-column: 1 / -1; }
+  .suggest-actions .btn { min-height: 44px; justify-content: center; }
+  .suggest-actions .muted { grid-column: 1 / -1; text-align: center; }
+}

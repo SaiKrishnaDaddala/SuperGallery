@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.8.0 — 2026-11-22
+
+- People: one person split into several groups (for example early photos with and without glasses) is now brought back together. After every face pass, each library's groups are compared by their average face and joined when they clearly match (thresholds measured on a real 84,000-photo library). Two faces in the same photo are never joined, two different names are never joined, and libraries stay separate. Runs once by itself after updating.
+- People: "Same person?" at the top of People asks about groups that look alike but not enough to decide alone. Same person joins them (keeping the named or larger group); Different people is remembered and never asked again.
+- People: a face that matches two halves of one split person now joins the closer half instead of starting yet another group.
+- People: faces seen in only one photo (often strangers in a crowd at an event) are no longer listed unless named or searched for; a note under the groups says how many and shows them on request.
+- People: matching keeps each library's groups in memory for the whole run instead of reloading every group for every photo, so face passes on large libraries use much less time and disk.
+- Things: new things common in Indian family libraries — gods and idols, pooja shelves, public events, portraits, greeting cards, advertisements, emails and spreadsheets — and more specific descriptions for temple, certificate and ID card. On a sample of real photos this cut wrong tags from 24 to 4 (Temple and Certificate were collecting idols, political events, ads and screenshots). Every photo is re-tagged once after updating, from the stored vectors, in under a minute.
+- Places: WhatsApp images and screenshots (which never carry a location) are no longer opened when looking for GPS, so the first Places scan of a phone library finishes several times faster.
+- Albums and other pages: an empty message inside a grid now sits in the middle of the page instead of in the first column. The empty Albums page offers Start a search.
+- Phones: the People search box gets its own row.
+
 ## 2.7.1 — 2026-11-22
 
 - While SuperGallery prepares its database after a start or an update (a few minutes the first time after upgrading a large library), the app now answers "SuperGallery is finishing an update. Try again in a minute." instead of errors such as a failing share link page. The plain-HTTP listener starts before that preparation ends.

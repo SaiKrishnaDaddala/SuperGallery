@@ -191,6 +191,17 @@ def _startup():
     from . import memory
     memory.start()
     intelligence_tasks.resume()
+    try:  # after an update with a new Things label list: one quick photo pass (only new photos) then re-tag
+        from . import tags
+        if db.kv_get("tags_version") != tags.VERSION and features.enabled("photo_search") and not jobs.intelligence.busy_with("visual"):
+            intelligence_tasks.submit("visual")
+    except Exception:  # noqa: BLE001 - never block startup
+        log.exception("could not schedule Things re-tagging")
+    try:  # after an update that joins split People groups: one quick face pass (only new photos) then regroup
+        if db.kv_get("people_regroup") != people.REGROUP and features.enabled("people") and not jobs.intelligence.busy_with("faces"):
+            intelligence_tasks.submit("faces")
+    except Exception:  # noqa: BLE001 - never block startup
+        log.exception("could not schedule People regrouping")
     threading.Thread(target=scheduler, daemon=True, name="scheduler").start()
     log.info("SuperGallery ready. Roots: %s", SCAN_ROOTS)
 

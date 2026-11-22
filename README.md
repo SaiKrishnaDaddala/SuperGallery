@@ -42,11 +42,11 @@ SuperGallery is a self-hosted photo gallery and smart file manager for a home NA
 - **Photos timeline** grouped by month and day, photos at their own shape, a year/month scrubber, adjustable size and a full-screen viewer for photos, videos, audio and PDFs.
 - **Favourites, On this day and Places** — star photos, revisit today's date in earlier years, and browse where photos were taken (named on the NAS from their GPS tags; no map service).
 - **Share links** — a read-only page of chosen photos for 1 day, 1 week or 30 days, without an account; turn it off any time.
-- **Explore** — people, things recognised in your photos (dogs, food, temples, receipts, beaches and more than 120 others) and collections, all worked out on the NAS.
+- **Explore** — people, things recognised in your photos (dogs, food, temples, gods and idols, receipts, beaches and more than 130 others) and collections, all worked out on the NAS.
 - **Search by meaning** — type "sunset at the beach" or "people cycling" and get matching photos, using a local CLIP model (no cloud).
 - **Video scene search** — finds the moment inside a video and opens it at that timestamp.
 - **Text in images and documents** — on-device OCR for receipts and screenshots in English, Hindi and Telugu, plus text extraction from PDFs and office documents. Search ranks the best matches first.
-- **People** — local face grouping with names you assign.
+- **People** — local face grouping with names you assign; split groups of one person are joined automatically, and unsure ones are asked as "Same person?".
 - **Smart albums** that keep themselves up to date from a saved search.
 - **Command palette** (Ctrl K) and search filters such as `type:video larger:100mb after:2025-01-01`.
 

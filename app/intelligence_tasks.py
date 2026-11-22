@@ -40,6 +40,10 @@ def _execute(task, request_id, kind, owners, retry):
             if kind == 'visual':
                 from . import tags
                 result.update(tags.update(task))
+            if kind == 'faces':
+                result.update(people.regroup(task, owners))
+                if not owners:
+                    db.kv_set('people_regroup', people.REGROUP)
             task.progress(stage='Ready',message=f'{task.total:,} files checked; indexed results are ready')
         return result
     except jobs.Cancelled:

@@ -17,8 +17,8 @@ A short guide to everyday use. For installing and updating, see [INSTALL.md](INS
 
 ## Explore
 
-- **People:** faces are grouped on your NAS. Add names, merge groups that are the same person (Select → pick → Merge), and fix mistakes from a person's page. Groups get better as more photos are checked.
-- **Things:** more than 120 everyday things (pets, food, temples, vehicles, receipts and more) recognised in photos after **Photo meaning** has looked at them. Matches can be imperfect.
+- **People:** faces are grouped on your NAS. Add names, merge groups that are the same person (Select → pick → Merge), and fix mistakes from a person's page. SuperGallery joins groups that are clearly one person by itself; when it is not sure, **Same person?** at the top asks you (your answer is remembered). Faces seen in only one photo are tucked away; the note under the groups shows them.
+- **Things:** more than 130 everyday things (pets, food, temples, gods and idols, pooja, events, vehicles, receipts and more) recognised in photos after **Photo meaning** has looked at them. Matches can be imperfect.
 - **Places:** where photos were taken, from the location the camera or phone saved in the photo. Names come from a list of towns stored with the app; nothing is sent to a map service. New places appear after a library scan.
 - **Collections:** photos sorted automatically: camera photos, WhatsApp and chat images, screenshots, documents, blurry, dark and more.
 

@@ -36,8 +36,9 @@ def people_status():
 
 
 @router.get("/people")
-def people_list(q: str = Query("", max_length=80), offset: int = Query(0, ge=0), limit: int = Query(120, ge=1, le=200)):
-    return people.listing(q, offset, limit)
+def people_list(q: str = Query("", max_length=80), offset: int = Query(0, ge=0), limit: int = Query(120, ge=1, le=200),
+                small: bool = False):
+    return people.listing(q, offset, limit, small)
 
 
 @router.post("/people/index")
@@ -51,6 +52,19 @@ def people_index(body: dict = Body(default={})):
 @router.post("/people/clear")
 def people_clear():
     return people.clear()
+
+
+@router.get("/people/suggestions")
+def people_suggestions(limit: int = Query(12, ge=1, le=50)):
+    return people.suggestions(limit)
+
+
+@router.post("/people/{pid}/not-same")
+def person_not_same(pid: int, body: dict = Body(...)):
+    other = body.get("other")
+    if not isinstance(other, int) or isinstance(other, bool):
+        raise HTTPException(400, "Choose a valid person")
+    return people.not_same(pid, other)
 
 
 @router.get("/people/{pid}")

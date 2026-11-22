@@ -80,3 +80,14 @@ def test_on_this_day(library):  # noqa: F811
     years = queries.on_this_day()['years']
     assert [(y['years_ago'], [i['name'] for i in y['items']]) for y in years] == [
         (1, [f'{today.year - 1}-camera.jpg']), (3, [f'{today.year - 3}-camera.jpg'])]
+
+
+def test_messaging_images_and_screenshots_are_not_opened_for_gps(library, monkeypatch):  # noqa: F811
+    c, add, _ = library
+    wa, _ = add('IMG-20260101-WA0007.jpg')
+    shot, _ = add('Screenshot_20260101-101010.png')
+    opened = []
+    monkeypatch.setattr(places, 'gps', lambda path: opened.append(path))
+    assert places.update() == {'places': 0}
+    assert opened == []
+    assert {r[0] for r in c.execute('SELECT geo FROM files WHERE id IN (?,?)', (wa, shot))} == {-1}

@@ -4,6 +4,7 @@ Reads only the EXIF GPS block (no pixel decoding) and names each location after 
 GeoNames list (towns of 5,000+ people, CC BY 4.0). No map service or network call is involved.
 """
 import gzip
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -18,6 +19,8 @@ DATA = Path(__file__).resolve().parent / 'geo' / 'places.tsv.gz'
 GPS_IFD = 0x8825
 EXIF_EXTS = ('jpg', 'jpeg', 'heic', 'heif', 'tif', 'tiff', 'webp', 'png', 'dng')
 FAR_KM = 60  # farther than this from any listed town: name only the region and country
+# Messaging apps strip the location from photos they send, and screenshots never have one: no need to open these.
+NO_GPS = re.compile(r'(-WA\d{3,}|^screenshot|^scr_|telegram)', re.I)
 _lock = threading.Lock()
 _towns = None
 
@@ -94,7 +97,12 @@ def gps(path: str):
 def update(task=None) -> dict:
     """Read GPS for photos not checked yet and name their places."""
     c = db.conn()
-    rows = c.execute(f"SELECT id, path FROM files WHERE cat='image' AND geo IS NULL AND ext IN ({','.join('?' * len(EXIF_EXTS))})", EXIF_EXTS).fetchall()
+    rows = c.execute(f"SELECT id, path, name FROM files WHERE cat='image' AND geo IS NULL AND ext IN ({','.join('?' * len(EXIF_EXTS))})", EXIF_EXTS).fetchall()
+    skip = [(r[0],) for r in rows if NO_GPS.search(r[2] or '')]
+    if skip:
+        with db.tx() as t:
+            t.executemany('UPDATE files SET geo=-1 WHERE id=?', skip)
+        rows = [r for r in rows if not NO_GPS.search(r[2] or '')]
     if not rows:
         return {'places': 0}
     found = 0

@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS faces(
  embedding BLOB NOT NULL, crop BLOB NOT NULL, score REAL NOT NULL, ignored INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS ix_faces_person ON faces(person_id, file_id);
 CREATE INDEX IF NOT EXISTS ix_faces_file ON faces(file_id);
+-- Pairs of groups the user said are different people; regrouping and suggestions never join them.
+CREATE TABLE IF NOT EXISTS people_not_same(a INTEGER NOT NULL, b INTEGER NOT NULL, PRIMARY KEY(a, b));
 -- Recreated on every start so existing libraries get the current rule.
 DROP TRIGGER IF EXISTS remove_deleted_photo_faces;
 CREATE TRIGGER remove_deleted_photo_faces AFTER DELETE ON files BEGIN
@@ -74,6 +76,12 @@ def init():
 
 PROTOTYPES = "mean-v1"
 MEAN_CAP = 200  # a person's average follows new faces; after this many it moves slowly but never freezes
+REGROUP = "regroup-v1"  # bump to regroup every library once after an update
+# Measured on a real 84k-photo library (SFace): a face scores 0.68+ (5th percentile) against its own person's average
+# and at most 0.54 against anyone else's; averages of two groups of one person score 0.72+, of different people <= 0.52.
+JOIN = .62   # a group joins a person when their average faces are at least this alike
+ASK = .50    # from here up to JOIN, ask the user "Same person?" instead of deciding
+MARGIN = .04  # ...and the best person must beat the next one by this much
 
 
 def _mean(vectors: np.ndarray) -> np.ndarray:
@@ -206,6 +214,8 @@ def choose_person(feature, prototypes, ids, excluded=()):
     ranked = np.argsort(scores)[::-1]
     best = int(ranked[0])
     second = float(scores[ranked[1]]) if len(ranked) > 1 else -1
+    if second >= .55 and float(prototypes[best] @ prototypes[int(ranked[1])]) >= JOIN:
+        second = -1  # both candidates are one person split in two (regrouping joins them); not a reason for a new group
     return ids[best] if float(scores[best]) >= .55 and float(scores[best]) - second >= .08 else None
 
 
@@ -218,6 +228,7 @@ def index(task, owners=None, retry=False):
             " AND (i.file_id IS NULL OR i.path!=f.path OR i.mtime!=f.mtime OR i.size!=f.size" +
             (" OR i.state='error'" if retry else "") + ") ORDER BY f.ts DESC, f.id", params)
         count, errors = 0, 0
+        banks = {}  # owner -> [ids, vectors]; loaded once per run, kept current as faces are added
         task.progress(total=len(rows), done=0, stage="Finding people", message="Processing on this NAS")
         for n, (row, pending) in enumerate(_detect_ahead(rows)):
             task.progress(done=n, message=f"{n:,} of {len(rows):,} photos checked · {count:,} faces found")
@@ -235,15 +246,19 @@ def index(task, owners=None, retry=False):
                 if not current or tuple(current) != (row["path"], row["mtime"], row["size"]):
                     continue
                 c.execute("DELETE FROM faces WHERE file_id=?", (row["id"],))
-                bank = c.execute("SELECT id,prototype FROM people WHERE owner=?", (row["owner"],)).fetchall()
-                ids = [r["id"] for r in bank]
-                vectors = np.array([np.frombuffer(r["prototype"], dtype="float32") for r in bank], dtype="float32")
+                if row["owner"] not in banks:
+                    bank = c.execute("SELECT id,prototype FROM people WHERE owner=?", (row["owner"],)).fetchall()
+                    banks[row["owner"]] = [[r["id"] for r in bank], np.array([np.frombuffer(r["prototype"], dtype="float32") for r in bank],
+                                                                            dtype="float32").reshape(-1, 128)]
+                ids, vectors = banks[row["owner"]]
                 used = set()
                 for feature, crop, confidence in found:
                     person = choose_person(feature, vectors, ids, used)
                     if person is None:
                         person = c.execute("INSERT INTO people(owner,prototype,created) VALUES(?,?,?)",
                             (row["owner"], feature.tobytes(), time.time())).lastrowid
+                        ids.append(person)
+                        vectors = banks[row["owner"]][1] = np.vstack([vectors, feature[None]])
                     else:
                         # Move the person's average toward this face, so groups get better as they grow.
                         k = ids.index(person)
@@ -262,6 +277,152 @@ def index(task, owners=None, retry=False):
         scope.set_owners(None)
 
 
+def _unit(v):
+    return v / np.maximum(np.linalg.norm(v, axis=-1, keepdims=True), 1e-8)
+
+
+def _not_same(c):
+    pairs = {}
+    for a, b in c.execute("SELECT a,b FROM people_not_same"):
+        pairs.setdefault(a, set()).add(b)
+        pairs.setdefault(b, set()).add(a)
+    return pairs
+
+
+def regroup(task=None, owners=None) -> dict:
+    """Join groups that are one person split in two (for example early photos with and without glasses).
+
+    Works on each library separately, biggest and named groups first. A group joins a person only when their average
+    faces are clearly alike (JOIN, with a margin over the next candidate), never when both appear in the same photo,
+    never across two different names, and never for a pair the user said are different people.
+    """
+    c = db.conn()
+    where = " WHERE owner IN (%s)" % ",".join("?" * len(owners)) if owners else ""
+    libraries = [r[0] for r in c.execute("SELECT DISTINCT owner FROM people" + where, list(owners or []))]
+    joined = 0
+    for owner in libraries:
+        if task:
+            task.progress(stage="Bringing matching faces together", message=f"Library {owner}")
+        joined += _regroup_library(owner)
+    return {"people_joined": joined}
+
+
+def _regroup_library(owner) -> int:
+    with _lock:
+        c = db.conn()
+        people_rows = c.execute("SELECT id,name,prototype FROM people WHERE owner=?", (owner,)).fetchall()
+        files = {}
+        for pid, fid in c.execute("SELECT f.person_id,f.file_id FROM faces f JOIN people p ON p.id=f.person_id "
+                                  "WHERE p.owner=? AND f.ignored=0", (owner,)):
+            files.setdefault(pid, set()).add(fid)
+        rows = [r for r in people_rows if r["id"] in files and len(r["prototype"]) == 512]
+        if len(rows) < 2:
+            return 0
+        rows.sort(key=lambda r: (r["name"] == "", -len(files[r["id"]]), r["id"]))
+        means = _unit(np.stack([np.frombuffer(r["prototype"], dtype="float32") for r in rows]))
+        not_same = _not_same(c)
+        anchors = np.zeros_like(means)
+        info = []  # per anchor: [id, name, faces weight, photo ids, member ids]
+        moves = []
+        for start in range(0, len(rows), 1024):
+            n0 = len(info)
+            ahead = means[start:start + 1024] @ anchors[:n0].T if n0 else None
+            for k, r in enumerate(rows[start:start + 1024]):
+                pid, name, mine = r["id"], r["name"].strip().casefold(), files[r["id"]]
+                n = len(info)
+                scores = np.empty(n, dtype="float32")
+                if n0:
+                    scores[:n0] = ahead[k]
+                if n > n0:
+                    scores[n0:] = anchors[n0:n] @ means[start + k]
+                choice = None
+                if n:
+                    near = np.flatnonzero(scores >= ASK)  # usually a handful out of many thousands
+                    order = near[np.argsort(-scores[near])][:8]
+                    eligible = [int(i) for i in order if scores[i] >= ASK and not (mine & info[i][3]) and
+                                not (name and info[i][1] and name != info[i][1]) and not (not_same.get(pid, set()) & info[i][4])]
+                    if eligible and scores[eligible[0]] >= JOIN:
+                        nxt = float(scores[eligible[1]]) if len(eligible) > 1 else -1
+                        if scores[eligible[0]] - nxt >= MARGIN:
+                            choice = eligible[0]
+                if choice is None:
+                    anchors[n] = means[start + k]
+                    info.append([pid, name, len(mine), set(mine), {pid}])
+                    continue
+                a = info[choice]
+                anchors[choice] = _unit(anchors[choice] * a[2] + means[start + k] * len(mine))
+                a[2] += len(mine)
+                a[3] |= mine
+                a[4].add(pid)
+                moves.append((pid, a[0]))
+        if not moves:
+            return 0
+        with db.tx() as t:
+            for source, target in moves:
+                t.execute("UPDATE faces SET person_id=? WHERE person_id=?", (target, source))
+                t.execute("UPDATE OR IGNORE people_not_same SET a=? WHERE a=?", (target, source))
+                t.execute("UPDATE OR IGNORE people_not_same SET b=? WHERE b=?", (target, source))
+                t.execute("DELETE FROM people_not_same WHERE a=? OR b=?", (source, source))
+                t.execute("DELETE FROM people WHERE id=?", (source,))
+            for target in {t_ for _, t_ in moves}:
+                emb = [np.frombuffer(e, dtype="float32") for (e,) in t.execute(
+                    "SELECT embedding FROM faces WHERE person_id=? AND ignored=0 ORDER BY id DESC LIMIT ?", (target, MEAN_CAP * 5))]
+                emb = [e for e in emb if e.size == 128]
+                if emb:
+                    t.execute("UPDATE people SET prototype=? WHERE id=?", (_mean(np.stack(emb)).tobytes(), target))
+        return len(moves)
+
+
+SUGGEST_MIN_PHOTOS = 3
+
+
+def suggestions(limit=12):
+    """Pairs of groups that may be one person ("Same person?"), most alike first. The user decides."""
+    out = []
+    c = db.conn()
+    not_same = _not_same(c)
+    for owner in scope.owners() or [r[0] for r in c.execute("SELECT DISTINCT owner FROM people")]:
+        rows = c.execute("SELECT p.id,p.name,p.prototype,COUNT(DISTINCT f.file_id) photos,MIN(f.id) cover FROM people p "
+                         "JOIN current_faces f ON f.person_id=p.id AND f.ignored=0 WHERE p.owner=? GROUP BY p.id "
+                         "HAVING photos>=? ORDER BY photos DESC LIMIT 600", (owner, SUGGEST_MIN_PHOTOS)).fetchall()
+        rows = [r for r in rows if len(r["prototype"]) == 512]
+        if len(rows) < 2:
+            continue
+        m = _unit(np.stack([np.frombuffer(r["prototype"], dtype="float32") for r in rows]))
+        sims = np.triu(m @ m.T, 1)
+        for i, j in zip(*np.nonzero((sims >= ASK) & (sims < JOIN + .2))):
+            a, b = rows[int(i)], rows[int(j)]
+            if b["id"] in not_same.get(a["id"], ()) or (a["name"] and b["name"]):
+                continue
+            out.append((float(sims[i, j]), owner, a, b))
+    out.sort(key=lambda x: -x[0])
+    keep, seen = [], set()
+    for score, owner, a, b in out:
+        if a["id"] in seen or b["id"] in seen:
+            continue  # one question per group at a time
+        seen |= {a["id"], b["id"]}
+        if len(keep) < limit:
+            shared = c.execute("SELECT COUNT(*) FROM (SELECT file_id FROM faces WHERE person_id=? INTERSECT SELECT file_id FROM faces WHERE person_id=?)",
+                               (a["id"], b["id"])).fetchone()[0]
+            if shared:
+                continue  # both in one photo: two different people
+            keep.append({"score": round(score, 3), "owner": owner,
+                         "a": {"id": a["id"], "name": a["name"], "photos": a["photos"], "cover": a["cover"]},
+                         "b": {"id": b["id"], "name": b["name"], "photos": b["photos"], "cover": b["cover"]}})
+    return {"items": keep}
+
+
+def not_same(a, b):
+    if a == b:
+        raise HTTPException(400, "Choose two different people")
+    with _lock, db.tx() as c:
+        pa, pb = get_person(a, c), get_person(b, c)
+        if pa["owner"] != pb["owner"]:
+            raise HTTPException(400, "People from different libraries stay separate")
+        c.execute("INSERT OR IGNORE INTO people_not_same VALUES(?,?)", (min(a, b), max(a, b)))
+    return {"ok": True}
+
+
 def status():
     where, params = scope.where("f.owner", "f.cat='image'")
     row = db.conn().execute("SELECT COUNT(*) total, SUM(i.state='done') checked, SUM(i.state='error') errors, "
@@ -272,14 +433,19 @@ def status():
         "local": True, "celebrity_available": os.getenv("CELEBRITY_MATCHING_ENABLED") == "1" and importlib.util.find_spec("boto3") is not None}
 
 
-def listing(q="", offset=0, limit=120):
+def listing(q="", offset=0, limit=120, small=False):
+    """People groups, named first then by photo count. Groups seen in only one photo (often strangers in a crowd) are
+    left out unless they have a name, the user searches, or asks for them."""
     where, params = scope.where("p.owner", "f.ignored=0 AND p.name LIKE ? ESCAPE '\\'",
         ["%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"])
     base = " FROM people p JOIN current_faces f ON f.person_id=p.id" + where
-    total = db.conn().execute("SELECT COUNT(DISTINCT p.id)" + base, params).fetchone()[0]
-    rows = db.conn().execute("SELECT p.id,p.name,p.owner,COUNT(DISTINCT f.file_id) photos,MIN(f.id) cover" + base +
-        " GROUP BY p.id ORDER BY (p.name!='') DESC, photos DESC,p.id LIMIT ? OFFSET ?", params + [limit, offset]).fetchall()
-    return {"items": [dict(r) for r in rows], "total": total}
+    keep = "" if small or q else " HAVING p.name!='' OR COUNT(DISTINCT f.file_id)>1"
+    c = db.conn()
+    total = c.execute("SELECT COUNT(*) FROM (SELECT p.id" + base + " GROUP BY p.id" + keep + ")", params).fetchone()[0]
+    hidden = 0 if small or q else c.execute("SELECT COUNT(DISTINCT p.id)" + base, params).fetchone()[0] - total
+    rows = c.execute("SELECT p.id,p.name,p.owner,COUNT(DISTINCT f.file_id) photos,MIN(f.id) cover" + base +
+        " GROUP BY p.id" + keep + " ORDER BY (p.name!='') DESC, photos DESC,p.id LIMIT ? OFFSET ?", params + [limit, offset]).fetchall()
+    return {"items": [dict(r) for r in rows], "total": total, "hidden": hidden}
 
 
 def get_person(pid, c=None):
@@ -325,6 +491,9 @@ def merge(source, target):
         if a["owner"] != b["owner"]:
             raise HTTPException(400, "People from different libraries stay separate")
         c.execute("UPDATE faces SET person_id=? WHERE person_id=?", (target, source))
+        c.execute("UPDATE OR IGNORE people_not_same SET a=? WHERE a=?", (target, source))
+        c.execute("UPDATE OR IGNORE people_not_same SET b=? WHERE b=?", (target, source))
+        c.execute("DELETE FROM people_not_same WHERE a=? OR b=? OR a=b", (source, source))
         c.execute("DELETE FROM people WHERE id=?", (source,))
     return {"ok": True, "person_id": target}
 

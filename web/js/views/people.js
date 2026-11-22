@@ -6,11 +6,11 @@ const displayName = p => p.name || 'Add a name';
 const modal = (title, body, actions) => coreModal({title, body, actions});
 
 export function peopleView(root, params) {
-  let alive = true, version = 0, offset = 0, searchTimer, statusTimer, current, capability = false, selecting = false;
+  let alive = true, version = 0, offset = 0, searchTimer, statusTimer, current, capability = false, selecting = false, small = false, ideas = [];
   const picked = new Map();
   const pid = Number(params.get('id')) || null;
   const el = h(`<div class="view people-view"><div class="page-head"><div class="grow"><h1>People</h1><p>Familiar faces. All in one place.</p></div><button class="btn index-people">${icon('sparkles')}Find people</button></div>
-    <div class="people-progress" aria-live="polite"></div><div class="people-toolbar"><div class="search-box">${icon('search')}<input class="find-person" aria-label="Find a person" placeholder="Find someone by name"></div><button class="btn select-people">${icon('selectAll')}Select</button><button class="btn ghost privacy">${icon('lock')}On your NAS</button></div><div class="people-content"><div class="empty"><div class="spin"></div></div></div><div class="people-selbar" hidden></div></div>`);
+    <div class="people-progress" aria-live="polite"></div><div class="people-suggest" hidden></div><div class="people-toolbar"><div class="search-box">${icon('search')}<input class="find-person" aria-label="Find a person" placeholder="Find someone by name"></div><button class="btn select-people">${icon('selectAll')}Select</button><button class="btn ghost privacy">${icon('lock')}On your NAS</button></div><div class="people-content"><div class="empty"><div class="spin"></div></div></div><div class="people-selbar" hidden></div></div>`);
   root.append(el);
 
   async function refreshStatus() {
@@ -37,16 +37,56 @@ export function peopleView(root, params) {
       }
       else {
         const q = $('.find-person', el).value.trim();
-        const r = await api(`/people?q=${encodeURIComponent(q)}&offset=${offset}`);
+        const r = await api(`/people?q=${encodeURIComponent(q)}&offset=${offset}${small ? '&small=1' : ''}`);
         if (!alive || v !== version) return;
         const host = $('.people-content', el);
         if (!append) host.innerHTML = r.total ? '<div class="people-grid"></div>' : `<div class="people-empty"><div class="people-empty-icon">${icon('users')}</div><h2>${q ? 'No person with that name' : 'Make room for familiar faces'}</h2><p>${q ? 'Try another name, or clear the search to see unnamed groups.' : 'Find people groups faces from your photos here. Add names, bring matching groups together, and revisit every moment with someone.'}</p>${q ? '' : '<button class="btn primary start-faces">Find people in my photos</button>'}</div>`;
         $('.start-faces', host)?.addEventListener('click', start);
         $('.people-grid', host)?.insertAdjacentHTML('beforeend', r.items.map(p => `<a class="person-card ${p.name ? '' : 'unnamed'}${picked.has(p.id) ? ' picked' : ''}" href="#/people?id=${p.id}" data-id="${p.id}" data-owner="${esc(p.owner)}" data-name="${esc(p.name || '')}" data-photos="${p.photos}" data-cover="${p.cover}"><span class="pick-mark" aria-hidden="true">${icon('check')}</span><img loading="lazy" src="${faceImage(p.cover)}" alt="" width="160" height="160"><strong>${esc(displayName(p))}</strong><span>${num(p.photos)} ${p.photos === 1 ? 'photo' : 'photos'}</span></a>`).join(''));
         moreButton(host, offset + r.items.length < r.total);
+        hiddenNote(host, q ? 0 : r.hidden);
         wireCards(host);
+        if (!append) suggest();
       }
     } catch (e) { if (alive) { $('.people-content', el).innerHTML = `<div class="empty"><h2>Couldn’t load people</h2><p>${esc(e.message)}</p><button class="btn retry">Try again</button></div>`; $('.retry', el).onclick = () => load(); } }
+  }
+
+  function hiddenNote(host, hidden) {
+    $('.people-hidden', host)?.remove();
+    if (!hidden && !small) return;
+    host.insertAdjacentHTML('beforeend', small
+      ? '<p class="people-hidden muted small">Showing every face, including people seen in just one photo. <button class="link show-small">Show only familiar faces</button></p>'
+      : `<p class="people-hidden muted small">${num(hidden)} ${hidden === 1 ? 'face' : 'faces'} seen in just one photo ${hidden === 1 ? 'is' : 'are'} not shown, often strangers in a crowd. <button class="link show-small">Show them</button></p>`);
+    $('.show-small', host).onclick = () => { small = !small; offset = 0; load(); };
+  }
+
+  // "Same person?": groups that look alike but not enough to join on their own. The user decides.
+  async function suggest(again = false) {
+    const box = $('.people-suggest', el);
+    if (pid || $('.find-person', el).value.trim()) { box.hidden = true; return; }
+    if (!again) { try { ideas = (await api('/people/suggestions?limit=20')).items; } catch { ideas = []; } }
+    if (!alive) return;
+    const idea = ideas[0];
+    if (!idea) { box.hidden = true; box.innerHTML = ''; return; }
+    const face = (p) => `<a class="suggest-face" href="#/people?id=${p.id}"><img src="${faceImage(p.cover)}" alt="" width="96" height="96"><b>${esc(p.name || 'Unnamed')}</b><span>${num(p.photos)} photos</span></a>`;
+    box.hidden = false;
+    box.innerHTML = `<div class="grow"><h2>Same person?</h2><p>These groups look alike. Joining them keeps every photo; you can move a face out again later.</p></div>
+      <div class="suggest-pair">${face(idea.a)}${face(idea.b)}</div>
+      <div class="suggest-actions"><button class="btn primary yes">${icon('check')}Same person</button><button class="btn no">Different people</button><button class="btn ghost skip">Not sure</button>${ideas.length > 1 ? `<span class="muted small">${num(ideas.length)} to review</span>` : ''}</div>`;
+    const next = () => { ideas.shift(); suggest(true); };
+    $('.yes', box).onclick = async (e) => {
+      e.currentTarget.disabled = true;
+      // Keep the named group, or else the bigger one.
+      const [keep, fold] = (idea.b.name && !idea.a.name) || (!idea.a.name && idea.b.photos > idea.a.photos) ? [idea.b, idea.a] : [idea.a, idea.b];
+      try {
+        await api(`/people/${fold.id}/merge`, { target: keep.id });
+        ideas = ideas.filter((x) => ![x.a.id, x.b.id].includes(fold.id));
+        toast('Joined into one person', 'success');
+        offset = 0; load(); suggest(true);
+      } catch (err) { fail(err); }
+    };
+    $('.no', box).onclick = async () => { try { await api(`/people/${idea.a.id}/not-same`, { other: idea.b.id }); next(); } catch (err) { fail(err); } };
+    $('.skip', box).onclick = next;
   }
 
   function moreButton(host, more) {
