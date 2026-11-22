@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 # Video thumbnails and probing use PyAV (FFmpeg libraries in a ~35 MB wheel) instead of Debian's ffmpeg.
 # The optional Amazon Rekognition celebrity lookup needs boto3: build with --build-arg WITH_AWS=1.
