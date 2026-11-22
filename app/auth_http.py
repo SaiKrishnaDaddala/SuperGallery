@@ -73,6 +73,10 @@ def install(app):
         if request.state.remote and not security.enabled():
             return JSONResponse({'detail':'Remote access requires two-step verification. Enable it using the local NAS address.'},status_code=403,headers={'Cache-Control':'no-store'})
         path = request.url.path
+        from . import lifecycle
+        if lifecycle.STARTING and (path.startswith("/s/") or (path.startswith("/api/") and path != "/api/auth")):
+            return JSONResponse({'detail': 'SuperGallery is finishing an update. Try again in a minute.'}, status_code=503,
+                                headers={'Retry-After': '30', 'Cache-Control': 'no-store'})
         if path.startswith("/api/"):
             if request.method not in ("GET", "HEAD", "OPTIONS"):
                 origin = request.headers.get("origin")

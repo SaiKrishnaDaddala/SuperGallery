@@ -165,6 +165,15 @@ def scheduler():
 
 @app.on_event("startup")
 def startup():
+    from . import lifecycle
+    lifecycle.STARTING = True
+    try:
+        _startup()
+    finally:
+        lifecycle.STARTING = False
+
+
+def _startup():
     from . import backups
     backups.apply_pending()
     from .upgrade import backup

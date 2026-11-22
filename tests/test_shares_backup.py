@@ -98,3 +98,19 @@ def test_phone_backup_skips_files_already_on_the_nas(app_client):
     mp.undo()
     assert r.status_code == 200 and r.json()['present'] == [0] and r.json()['owner'] == 'alice'
     assert anonymous.post('/api/uploads/check', json={'destination': '/', 'files': []}, headers={'X-SG-Request': '1'}).status_code == 401
+
+
+def test_requests_wait_politely_while_an_update_finishes(app_client):
+    from app import lifecycle
+    c, signed_in, anonymous, photos, _ = app_client
+    token = signed_in.post('/api/shares', json={'ids': [photos[0][0]], 'days': 7}).json()['path'][3:]
+    lifecycle.STARTING = True
+    try:
+        busy = signed_in.get('/api/shares')
+        assert busy.status_code == 503 and 'finishing an update' in busy.json()['detail'] and busy.headers['retry-after'] == '30'
+        assert anonymous.get(f'/s/{token}').status_code == 503
+        assert anonymous.get('/api/auth').status_code == 200  # the sign-in screen still loads
+    finally:
+        lifecycle.STARTING = False
+    assert signed_in.get('/api/shares').status_code == 200
+    assert anonymous.get(f'/s/{token}').status_code == 200

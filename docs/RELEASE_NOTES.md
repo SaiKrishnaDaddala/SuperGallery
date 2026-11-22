@@ -1,3 +1,5 @@
+SuperGallery 2.7.1 is a small fix on top of 2.7.0: right after an update, while the NAS prepares its database (a few minutes on large libraries), the app now says it is finishing the update instead of showing errors.
+
 SuperGallery 2.7.0 adds Favourites, On this day, Places, share links and phone backup, and makes People groups better as they grow.
 
 ## New
@@ -16,4 +18,4 @@ SuperGallery 2.7.0 adds Favourites, On this day, Places, share links and phone b
 New to SuperGallery? The [user guide](https://github.com/SaiKrishnaDaddala/SuperGallery/blob/main/docs/USER_GUIDE.md) walks through every page.
 
 ## Install or update
-Use `ghcr.io/saikrishnadaddala/supergallery:2.7.0` (or `:latest`). On a UGREEN NAS: Docker → Project → supergallery → Redeploy, tick "Pull the latest image". With Docker Compose: `docker compose pull && docker compose up -d`. Your library, people, albums and settings are kept. Places appear after the next library scan (Settings → Rescan now).
+Use `ghcr.io/saikrishnadaddala/supergallery:2.7.1` (or `:latest`). On a UGREEN NAS: Docker → Project → supergallery → Redeploy, tick "Pull the latest image". With Docker Compose: `docker compose pull && docker compose up -d`. Your library, people, albums and settings are kept. Places appear after the next library scan (Settings → Rescan now). The first start after updating a large library can take a few minutes while the database is prepared.

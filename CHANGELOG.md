@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.1 — 2026-11-22
+
+- While SuperGallery prepares its database after a start or an update (a few minutes the first time after upgrading a large library), the app now answers "SuperGallery is finishing an update. Try again in a minute." instead of errors such as a failing share link page. The plain-HTTP listener starts before that preparation ends.
+
 ## 2.7.0 — 2026-11-22
 
 - Favourites: a star in the viewer (or press F) and Favourite in every selection bar; a Favourites page in the menu, and a small star on favourite photos in the timeline.
